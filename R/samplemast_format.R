@@ -1,3 +1,6 @@
+# Create an explicit list of parameter names to validate samplemaster output
+param_list <- c('TP','TDP','SRP','TN','TDN','NOX','tNH3','TSS')
+
 #' Calculate Stream Discharge from Cross-Sectional Measurements
 #'
 #' Computes total stream discharge (flow) at each sampling location and date
@@ -47,7 +50,27 @@
 #' @importFrom rlang sym
 #' @export
 
+samplemast_format <- function(samplemaster_csv){
 
+  # Convert data to tibble for better error handling
+  dat <- tibble::tibble(samplemaster_csv)
+  # Perform a check for unrecognized parameters in samplemaster data
+  param_check <- unique(dat$Param)
+  if(is.null(param_check)){stop('Column "Param" not found in data')}
+
+  if (any(!param_check %in% param_list)) {
+    message()
+    stop(paste('Unrecognized parameter(s) : "',
+               param_check[!param_check %in% param_list],
+               '" found in samplemaster input file',
+               sep = ''))
+      # 'Unidentified parameters detected in samplemaster input file')
+
+  }
+}
+
+#
+######################################
 calculate_discharge <- function(data,
                                 location = "Location",
                                 date = "Date",
