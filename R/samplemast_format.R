@@ -67,6 +67,20 @@ samplemast_format <- function(samplemaster_csv){
       # 'Unidentified parameters detected in samplemaster input file')
 
   }
+
+  # Identify NULL's in the result column & throw warming that includes Sample # and Param
+
+  # Check for missing site names in the Site column for FD samples
+
+  # Check for <LOD values and change them to "<LOD"
+
+  # For (NO2, SRP, Pt_Co_N) check for analysis time and throw warning if missing
+
+  # Rename weird Param names to something intelligible
+
+  # Logical check for properly formatted Results column (are there characters in any results value)?
+
+  # Change ODUs to their actual purpose
 }
 
 #
