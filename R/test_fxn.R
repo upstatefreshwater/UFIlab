@@ -1,3 +1,8 @@
+library(dplyr)
+library(tidyverse)
+library(stringr)
+
+
 testfxn <- function(data){  #data is the only argument passed to the "testfxn"
   smastex_filtered <- data %>%  #create a data object
     dplyr::filter(!Param %in% badparams) %>% #filter out any bad params
@@ -19,10 +24,22 @@ testfxn(smast_ex)
 smast_ex <- smast_ex %>% #When site is "Field Dup" and there is a location the site value is replaced with Location
   dplyr::mutate(
     Site = dplyr::case_when(
-      Site == "Field Dup" & !is.na(Location) ~ Location,
+      stringr::str_to_lower(Site) %in% c("field dup", "dup", "fd", "duplicate", "f.d", "f/d") & !is.na(Location) ~ Location,
       TRUE ~ Site
     )
   )
+
+smast_ex <- smast_ex %>% #mutate is adding a warning column and creating a warning to any site that still have "dup" in the name after replacing with location
+  dplyr::mutate(
+    Warning = dplyr::case_when(
+      stringr::str_detect(stringr::str_to_lower(Site), "dup") ~ "Check sample type / site name",
+      TRUE ~ NA_character_
+    )
+  )
+
+smast_ex %>%
+  dplyr::filter(!is.na(Warning)) #shows the rows where the warning exists
+
 
 smast_ex %>% #check for field dups, groups data by site, should be 0 rows returned
     dplyr::count(Site) %>%
