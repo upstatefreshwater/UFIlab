@@ -16,7 +16,16 @@ testfxn <- function(data){  #data is the only argument passed to the "testfxn"
 
 testfxn(smast_ex)
 
+smast_ex <- smast_ex %>% #When site is "Field Dup" and there is a location the site value is replaced with Location
+  dplyr::mutate(
+    Site = dplyr::case_when(
+      Site == "Field Dup" & !is.na(Location) ~ Location,
+      TRUE ~ Site
+    )
+  )
 
-
+smast_ex %>% #check for field dups, groups data by site, should be 0 rows returned
+    dplyr::count(Site) %>%
+    dplyr::filter(Site == "Field Dup")
 
 
