@@ -3,6 +3,7 @@ library(tidyverse)
 library(stringr)
 
 
+
 testfxn <- function(data){  #data is the only argument passed to the "testfxn"
   smastex_filtered <- (data) %>%  #create a data object
     dplyr::filter(!Param %in% badparams) %>% #filter out any bad params
@@ -30,6 +31,31 @@ data <- data %>% #When site is "Field Dup" and there is a location the site valu
   )
 
 
+
+fix_field_dup_site <- function(data) { #function to remove dupes idk
+  data %>%
+    dplyr::mutate(
+      Site = dplyr::case_when(
+        stringr::str_to_lower(Site) %in%
+          c("field dup", "dup", "fd", "duplicate", "f.d", "f/d") &
+          !is.na(Location) ~ Location,
+        TRUE ~ Site
+      )
+    )
+}
+
+data <- fix_field_dup_site(data)
+
+test_df <- data.frame( #test with a data frame that include "dup" to see if function worked
+  Site = c("Field Dup", "Station A", "dup", "FD"),
+  Location = c("Loc1", NA, "Loc3", "Loc4"),
+  stringsAsFactors = FALSE
+)
+
+result <- fix_field_dup_site(test_df)
+result #to see site name replaced with location name
+
+
 data <- data %>% #mutate is adding a warning column and creating a warning to any site that still have "dup" in the name after replacing with location
   dplyr::mutate(
     Warning = dplyr::case_when(
@@ -42,5 +68,16 @@ data %>%
   dplyr::filter(!is.na(Warning)) #shows the rows where the warning exists
 
 
+add_dup_warning <- function(data) { #dup WARNING function if "dup" is in site name after
+  stopifnot(is.data.frame(data))
 
+  data %>%
+    dplyr::mutate(
+      Warning = dplyr::case_when(
+        stringr::str_detect(stringr::str_to_lower(Site), "dup") ~
+          "Check sample type / site name",
+        TRUE ~ NA_character_
+      )
+    )
+}
 
