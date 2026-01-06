@@ -81,3 +81,32 @@ add_dup_warning <- function(data) { #dup WARNING function if "dup" is in site na
     )
 }
 
+
+test_df <- data.frame( #test with data frame with dup in the name to see if it throws warning
+  Site = c(
+    "Great Gully DUP",
+    "Control Site",
+    "dup_sample_01",
+    NA
+  ),
+  stringsAsFactors = FALSE
+)
+
+add_dup_warning(test_df)
+
+
+data <- data %>% #pipe both functions together
+  fix_field_dup_site() %>%
+  add_dup_warning()
+
+test_df <- data.frame(
+  Site = c("Field Dup", "Station A", "dup", "FD", "dup_sample_01"),
+  Location = c("Loc1", NA, "Loc3", "Loc4", NA),
+  stringsAsFactors = FALSE
+)
+
+result <- test_df %>%  #running the full dup replaced with location and throw warning pipeline with test data
+  fix_field_dup_site() %>%
+  add_dup_warning()
+
+result #check to see warnings and replaced data
