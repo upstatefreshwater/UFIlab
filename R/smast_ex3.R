@@ -1,0 +1,25 @@
+#' Example dataset from SampleMaster
+#'
+#' A condensed example dataset containing laboratory analytical results from
+#' UFI's SampleMaster Program. Each row represents a
+#' single parameter result for a sampled bottle.
+#'
+#' @format A tibble with 538 rows and 13 variables:
+#' \describe{
+#'   \item{SampleNumber}{Character. Unique identifier for each sample.}
+#'   \item{Test}{Character. Test type performed (e.g., TDP, TP, tNH3).}
+#'   \item{Location}{Logical. Location field (mostly NA).}
+#'   \item{CollectDate}{POSIXct. Date the sample was collected.}
+#'   \item{CollectTime}{POSIXct. Time the sample was collected.}
+#'   \item{OrderDetails_User1}{Character. User-entered order detail (e.g., target concentration or note).}
+#'   \item{OrderDetails_User2}{Logical. Additional order detail (mostly NA).}
+#'   \item{OrderDetails_User4}{Character. Additional order detail code (e.g., replicate or batch flag).}
+#'   \item{OrderDetails_User3}{Character. Additional order detail (mostly NA).}
+#'   \item{Result}{Character. Analytical result (numeric values stored as character).}
+#'   \item{Param}{Character. Parameter measured (e.g., TDP, TP, tNH3).}
+#'   \item{Results_Units}{Character. Units associated with the result.}
+#'   \item{Site}{Character. Sampling site name.}
+#' }
+#'
+#' @source SMAST laboratory database
+"smast_ex3"
