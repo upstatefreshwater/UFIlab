@@ -2,21 +2,20 @@ library(dplyr)
 library(tidyverse)
 library(stringr)
 
-data <- smast_ex3  # Example dataset
+data <- smast_ex3
+
 
 
 dup_patterns <- c("field dup", "dup", "fd", "duplicate", "f.d", "f/d")
 
-
 rename_od <- function(data) {
   stopifnot(is.data.frame(data))
 
-  # Filter out bad parameters if Param exists
   if ("Param" %in% names(data)) {
-    data <- data %>% dplyr::filter(!.data$Param %in% badparams)
+    data <- data %>%
+      dplyr::filter(!.data$Param %in% badparams)
   }
 
-  # Rename columns
   data %>%
     dplyr::rename(
       `Receipt Temp (⁰C)`      = dplyr::any_of("OrderDetails_User1"),
@@ -27,9 +26,7 @@ rename_od <- function(data) {
     )
 }
 
-
-
-# Fix Field Duplicate Site Names
+data <- rename_od(data)
 
 fix_field_dup_site <- function(data) {
   stopifnot(
@@ -48,17 +45,6 @@ fix_field_dup_site <- function(data) {
 }
 
 
-# Test Field duplicate replacement
-
-test_df1<- data.frame(
-  Site = c("Field Dup", "Station A", "dup", "FD"),
-  Location = c("Loc1", NA, "Loc3", "Loc4")
-)
-fix_field_dup_site(test_df1)
-
-
-# Add Duplicate Site Warning
-
 add_dup_warning <- function(data) {
   stopifnot(
     is.data.frame(data),
@@ -76,16 +62,6 @@ add_dup_warning <- function(data) {
     )
 }
 
-
-# Test Dup warning
-
-test_df2<- data.frame(
-  Site = c("Great Gully DUP", "Control Site", "dup_sample_01", NA)
-)
-add_dup_warning(test_df2)
-
-
-#Add Missing Site Warning
 add_missing_site_warning <- function(data) {
   stopifnot(
     is.data.frame(data),
@@ -101,18 +77,11 @@ add_missing_site_warning <- function(data) {
     )
 }
 
-# Test Missing site warning
-test_df3 <- data.frame(
-  Site = c("Station 1", NA, "", "  ")
-)
-
-add_missing_site_warning(test_df3)
-
-#Piped together
-data_clean <- data %>%
+data <- data %>%
   rename_od() %>%
   fix_field_dup_site() %>%
   add_dup_warning() %>%
   add_missing_site_warning()
+
 
 
