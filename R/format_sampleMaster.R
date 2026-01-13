@@ -33,11 +33,45 @@ append_lod <- function(new_row, lod_data) {
   return(data.out)
 }
 
-#' Documentation
+#' Format SampleMaster Raw Data for Reporting
 #'
+#' This function reads raw output from SampleMaster software and formats it for dissemination.
+#' It performs the following tasks:
 #'
+#' 1. Reads raw Excel data from SampleMaster.
+#' 2. Coerces the `Result` column to numeric (with warning if non-numeric values are present).
+#' 3. Pulls the lab’s limit-of-detection (LOD) values from the internal `LOD_values.xlsx` file,
+#' to be updated annually by lab staff.
+#' 5. Checks that the units in the LOD file match expected units.
+#' 6. Replaces results below the LOD with `"<lod"`.
 #'
+#' @param path Character. Path to the SampleMaster raw Excel file to process.
+#' @param add_lod_units Optional tibble or data frame with columns `Parameter` (character)
+#' and `units` (character) to append to the internal LOD unit check. To be used only as a
+#' temporary stopgap until the internal lod_checkdata object can be updated. Default is `NULL`.
 #'
+#' @return A tibble identical to the raw SampleMaster data, except:
+#'   - The `Result` column is coerced to numeric (unless replaced with `"<lod"`).
+#'   - Values below the LOD are replaced with the string `"<lod"`.
+#'
+#' @details
+#' - Units in the LOD file (`LOD_values.xlsx`) are compared against `lod_checkdata`. A mismatch will throw an error.
+#' - Missing LOD values for any parameter will also throw an error.
+#' - The function returns a modified tibble; it does **not write to disk**.
+#'
+#' @examples
+#' \dontrun{
+#' # Process a raw SampleMaster file
+#' formatted <- format_sampleMaster("data/raw_samplemaster.xlsx")
+#'
+#' # Append new LOD unit before formatting
+#' new_units <- tibble(Parameter = "Chloride", units = "mg/L")
+#' formatted <- format_sampleMaster("data/raw_samplemaster.xlsx",
+#'                                  add_lod_units = new_units)
+#' }
+#'
+#' @export
+format_sampleMaster
 
 format_sampleMaster <- function(path,
                                 add_lod_units = NULL){
@@ -56,7 +90,7 @@ format_sampleMaster <- function(path,
   for (i in unique(int_lodcheck$Parameter)) {
     user_unit <- lod.data$units[lod.data$Parameter==i] # From "LOD_values.xlsx"
     check_unit <- int_lodcheck$units[int_lodcheck$Parameter==i] # Internal Check
-    if(user_unit != check_unit){
+    if(!identical(user_unit, check_unit)){
       stop(paste('The provided units in "LOD_values.xlsx" :',user_unit,
                  "\nfor the parameter:", i,
                  "\ndoes not match with the expected units:",check_unit))
@@ -71,7 +105,7 @@ format_sampleMaster <- function(path,
   # Coerce result columnto numeric
   if(!is.numeric(raw_dat$Result)){
     raw_dat$Result <- as.numeric(raw_dat$Result)
-    if(any(is.na(unique(raw_dat$Result)))){
+    if(anyNA(raw_dat$Result)){
       warning('NAs present in Result column following coercion of raw data to numeric,\n',
               'Check for text/characters in "Result" column of input',path)
     }
