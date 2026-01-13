@@ -17,9 +17,9 @@ read_raw_data <- function(file_path) {
   stopifnot(is.character(file_path), length(file_path) == 1, file.exists(file_path))
 
   # Read the first sheet of the Excel file
-  dat <- readxl::read_excel(file_path)
+  data <- readxl::read_excel(file_path)
 
-  return(dat)
+  return(data)
 }
 
 # -------------------------
