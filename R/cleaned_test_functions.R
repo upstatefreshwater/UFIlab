@@ -1,71 +1,85 @@
-library(dplyr)
-library(stringr)
-
-#' Read an Excel file
-#'
-#' Reads the first sheet of an Excel file and returns it as a tibble.
-#'
-#' @param file_path Character. Path to your Excel file (e.g., "data/myfile.xlsx").
-#' @return A tibble containing the data from the first sheet.
-#' @examples
-#' # Read Excel file
-#' mydata <- read_raw_data("data/myfile.xlsx")
-#' @export
-read_raw_data <- function(file_path) {
-
-  # Check that the file exists
-  stopifnot(is.character(file_path), length(file_path) == 1, file.exists(file_path))
-
-  # Read the first sheet of the Excel file
-  data <- readxl::read_excel(file_path)
-
-  return(data)
+# Helper to append warnings
+add_warn <- function(current, new) {
+  if (current == "" | is.na(current)) {
+    new
+  } else {
+    paste(current, new, sep = "; ")
+  }
 }
 
-# -------------------------
-# Constants
-# -------------------------
 
-# Common patterns indicating field duplicate samples
-dup_patterns <- c("field dup", "dup", "fd", "duplicate", "f.d", "f/d")
+#' Read raw Excel data
+#'
+#' Reads the first sheet of an Excel file and returns it as a data frame.
+#'
+#' @param path Character. Path to the Excel file (e.g., "data/myfile.xlsx").
+#' @return A data frame containing the Excel data.
+#' @examples
+#' dat <- read_raw_data("data/myfile.xlsx")
+#' @export
+read_raw_data <- function(path) {
 
-# -------------------------
-# Functions
-# -------------------------
+  # Check that the path is valid
+  if (!is.character(path) || length(path) != 1) {
+    stop("Error in read_raw_data(): 'path' must be a single character string.")
+  }
 
-#' Rename OrderDetails user columns
+  if (!file.exists(path)) {
+    stop("Error in read_raw_data(): file does not exist at the provided path.")
+  }
+
+  # Read the Excel file
+  dat <- readxl::read_excel(path)
+
+  # Ensure output is a data frame
+  if (!is.data.frame(dat)) {
+    stop("Error in read_raw_data(): failed to read Excel file as a data frame.")
+  }
+
+  return(dat)
+}
+
+
+#' Clean and validate sample data (simpler, mostly base R)
 #'
-#' Renames OrderDetails user fields to standardized, readable column
-#' names. If a \code{Param} column exists, rows containing values listed in
-#' \code{badparams} are removed prior to renaming.
+#' Performs standard cleaning and validation on sample data:
+#' * Renames OrderDetails columns to standardized names.
+#' * Removes rows with invalid `Param` values (from `badparams`) if present.
+#' * Replaces field duplicate site names with their `Location`.
+#' * Adds cumulative warnings for:
+#'    - Remaining duplicate site indicators (e.g., "dup").
+#'    - Missing or blank `Site` values.
 #'
-#' @param data A data frame containing OrderDetails user columns.
+#' @param data A data frame containing OrderDetails columns, `Site`, `Location`, and `Param`.
 #'
-#' @return A data frame with OrderDetails columns renamed. If present,
-#'   rows with invalid parameters are removed.
-#'
-#' @details
-#' This function is pipeline-safe and will silently skip renaming for any
-#' OrderDetails columns that are not present in the input data.
+#' @return A cleaned data frame with standardized column names and a `Warning` column listing any issues.
 #'
 #' @examples
 #' test_df <- data.frame(
-#'   OrderDetails_User1 = 10,
-#'   OrderDetails_User2 = "note"
+#'   OrderDetails_User1 = 20,
+#'   OrderDetails_User2 = "note",
+#'   Site = c("Field Dup", "Station A", NA, ""),
+#'   Location = c("Loc1", NA, "Loc3", "Loc4"),
+#'   Param = c("NO2", "TP", "SRP", "PtCoN")
 #' )
 #'
-#' rename_od(test_df)
+#' clean_sample_data(test_df)
 #'
 #' @export
-rename_od <- function(data) {
-  stopifnot(is.data.frame(data))
+clean_sample_data <- function(data) {
 
-  if ("Param" %in% names(data)) {
-    data <- data %>%
-      dplyr::filter(!.data$Param %in% badparams)
+  # 0. Ensure input is a data frame
+  if (!is.data.frame(data)) {
+    stop("Error in clean_sample_data(): input 'data' must be a data frame.")
   }
 
-  data %>%
+  # 1. Remove bad params if Param exists
+  if ("Param" %in% names(data) && exists("badparams")) {
+    data <- data[!data$Param %in% badparams, ]
+  }
+
+  # 2. Rename OrderDetails columns
+  data <- data %>%
     dplyr::rename(
       `Receipt Temp (⁰C)`      = dplyr::any_of("OrderDetails_User1"),
       Comments                 = dplyr::any_of("OrderDetails_User2"),
@@ -73,168 +87,59 @@ rename_od <- function(data) {
       Replicate                = dplyr::any_of("OrderDetails_User4"),
       `Mc_T Receipt Temp (⁰C)` = dplyr::any_of("OrderDetails_User5")
     )
-}
 
-#' Replace field duplicate site names with location
-#'
-#' Replaces common field duplicate site labels (e.g., "dup", "field dup")
-#' with the corresponding \code{Location} value when available.
-#'
-#' @param data A data frame containing \code{Site} and \code{Location}
-#'   columns.
-#'
-#' @return A data frame with field duplicate site names replaced by their
-#'   associated location values where applicable.
-#'
-#' @details
-#' Site names are only replaced when a non-missing \code{Location} value
-#' exists. Matching is case-insensitive.
-#'
-#' @examples
-#' test_df <- data.frame(
-#'   Site = c("Field Dup", "Station A"),
-#'   Location = c("Loc1", NA)
-#' )
-#'
-#' fix_field_dup_site(test_df)
-#'
-#' @export
-fix_field_dup_site <- function(data) {
-  stopifnot(
-    is.data.frame(data),
-    all(c("Site", "Location") %in% names(data))
-  )
 
-  data %>%
-    dplyr::mutate(
-      Site = dplyr::case_when(
-        stringr::str_to_lower(Site) %in% dup_patterns &
-          !is.na(Location) ~ Location,
-        TRUE ~ Site
-      )
-    )
-}
+  dup_text <- dup_patterns
 
-#' Flag remaining duplicate site names
-#'
-#' Adds a warning flag to records whose \code{Site} value still contains
-#' a duplicate indicator (e.g., "dup") after site name cleanup.
-#'
-#' @param data A data frame containing a \code{Site} column.
-#'
-#' @return A data frame with a \code{Warning} column indicating potential
-#'   duplicate site names.
-#'
-#' @examples
-#' test_df <- data.frame(
-#'   Site = c("Great Gully DUP", "Station A")
-#' )
-#'
-#' add_dup_warning(test_df)
-#'
-#' @export
-add_dup_warning <- function(data) {
-  stopifnot(
-    is.data.frame(data),
-    "Site" %in% names(data)
-  )
-
-  data %>%
-    dplyr::mutate(
-      Warning = dplyr::if_else(
-        !is.na(Site) &
-          stringr::str_detect(stringr::str_to_lower(Site), "dup"),
-        "Check sample type / site name",
-        NA_character_
-      )
-    )
-}
-
-#' Flag missing or blank site names
-#'
-#' Adds a warning flag for records with missing or blank \code{Site}
-#' values.
-#'
-#' @param data A data frame containing a \code{Site} column.
-#'
-#' @return A data frame with a \code{Warning} column indicating missing
-#'   site names.
-#'
-#' @details
-#' If a \code{Warning} column does not already exist, it is created.
-#' Existing warning values are preserved unless the site name is missing.
-#'
-#' @examples
-#' test_df <- data.frame(
-#'   Site = c("Station 1", NA, "", "  ")
-#' )
-#'
-#' add_missing_site_warning(test_df)
-#'
-#' @export
-add_missing_site_warning <- function(data) {
-  stopifnot(
-    is.data.frame(data),
-    "Site" %in% names(data)
-  )
-
-  if (!"Warning" %in% names(data)) {
-    data <- dplyr::mutate(data, Warning = NA_character_)
+  # 3. Fix duplicate site names
+  if (all(c("Site", "Location") %in% names(data))) {
+    idx_dup <- tolower(data$Site) %in% dup_text & !is.na(data$Location)
+    data$Site[idx_dup] <- data$Location[idx_dup]
   }
 
-  data %>%
-    dplyr::mutate(
-      Warning = dplyr::case_when(
-        is.na(Site) | stringr::str_trim(Site) == "" ~ "Missing site name",
-        TRUE ~ Warning
-      )
-    )
+  # 4. Initialize Warning column
+  if (!"Warning" %in% names(data)) {
+    data$Warning <- ""
+  }
+
+  # Helper to append warnings
+  add_warn <- function(current, new) {
+    if (current == "" | is.na(current)) {
+      new
+    } else {
+      paste(current, new, sep = "; ")
+    }
+  }
+
+  # 5. Warning for remaining duplicates
+  dup_idx <- grepl("dup", tolower(data$Site))
+  data$Warning[dup_idx] <- mapply(add_warn, data$Warning[dup_idx],
+                                  "Check sample type / site name")
+
+  # 6. Warning for missing/blank site names
+  missing_idx <- is.na(data$Site) | trimws(data$Site) == ""
+  data$Warning[missing_idx] <- mapply(add_warn, data$Warning[missing_idx],
+                                      "Missing site name")
+
+  # Replace empty strings with NA
+  data$Warning[data$Warning == ""] <- NA_character_
+
+  #normalize parameter
+  data$Param <- tolower(data$Param)
+  paramvals <- unique(data$Param)
+
+  if (any(paramvals %in% c("srp", "no2", "ptcon"))) {
+
+    collecttimes <- data$CollectTime[data$Param %in% c("srp", "no2", "ptcon")]
+
+    if (any(is.na(collecttimes)) || length(collecttimes) == 0) {
+      warning("Collection Time is Missing")
+    }
+  }
+
+
+
+  return(data)
 }
-
-#' Warn if sample collection time is missing for key parameters
-#'
-#' Checks for missing `CollectTime` values for NO2, SRP, and PtCoN samples.
-#' Adds a `Warning` column indicating which rows are missing collection time.
-#'
-#' @param data Data frame containing columns `Param` and `CollectTime`.
-#' @return The same data frame with a `Warning` column. Rows with missing
-#'   collection time for NO2, SRP, or PtCoN are flagged.
-#' @examples
-#' test_df <- data.frame(
-#'   Param = c("NO2", "SRP", "PtCoN", "TP"),
-#'   CollectTime = c("08:00", NA, NA, "09:00")
-#' )
-#' add_missing_collecttime_warning(test_df)
-#' @export
-add_missing_collecttime_warning <- function(data) {
-
-  stopifnot(is.data.frame(data))
-  stopifnot(all(c("Param", "CollectTime") %in% names(data)))
-
-  key_params <- c("NO2", "SRP", "PtCoN")
-
-  data %>%
-    dplyr::mutate(
-      Warning = dplyr::case_when(
-        Param %in% key_params & (is.na(CollectTime) | stringr::str_trim(CollectTime) == "") ~
-          "Missing collect time for key parameter",
-        TRUE ~ NA_character_
-      )
-    )
-}
-
-
-# -------------------------
-# Example workflow
-# -------------------------
-
-# data <- smast_ex3
-#
-# cleaned_data <- data %>%
-#   rename_od() %>%
-#   fix_field_dup_site() %>%
-#   add_dup_warning() %>%
-#   add_missing_site_warning()
-# addd_missing_collecttime_warning
 
 
