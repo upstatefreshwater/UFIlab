@@ -1,0 +1,110 @@
+# Helper to read the LOD file
+get_lod <- function() {
+  # full path inside installed package
+  path <- fs::path_package("UFIlab", "extdata", "LOD_values.xlsx")
+  # Throw error if LOD file is missing
+  if (!fs::file_exists(path)) stop("LOD file not found at: ", path)
+
+  # read with readxl
+  readxl::read_excel(path)
+}
+
+# Helper to append row(s) to LOD_values
+append_lod <- function(new_row, lod_data) {
+  if (!is.null(new_row)) {
+    # Ensure it's a data frame or tibble
+    checkmate::assert_data_frame(new_row, min.rows = 1, ncols = 2)
+
+    # Ensure column names match exactly
+    expected_cols <- c("Parameter", "units")
+    if (!all(expected_cols %in% colnames(new_row))) {
+      stop("new_row must contain columns: ", paste(expected_cols, collapse = ", "))
+    }
+    # Check each column type
+    checkmate::assert_character(new_row$Parameter)
+    checkmate::assert_character(new_row$units)
+  }
+
+  # Append if not NULL
+  if (!is.null(new_row)) {
+    data.out <- dplyr::bind_rows(lod_data, new_row)
+  }
+
+  return(data.out)
+}
+
+#' Documentation
+#'
+#'
+#'
+#'
+
+format_sampleMaster <- function(path,
+                                add_lod_units = NULL){
+  raw_dat <- read_excel(path)
+  # ----------------------------------LOD detection------------------------- ----
+  # Pull LOD data from the updateable Excel file
+  lod.data <- get_lod() # read from the helper function
+
+  # If user wishes to append LOD data update internal check here
+  int_lodcheck <- lod_checkdata
+  if(!is.null(add_lod_units)){
+    int_lodcheck <-  append_lod(new_row = add_lod_units,
+                                data = int_lodcheck)
+  }
+  # Check that LOD units are correct using internal check
+  for (i in unique(int_lodcheck$Parameter)) {
+    user_unit <- lod.data$units[lod.data$Parameter==i] # From "LOD_values.xlsx"
+    check_unit <- int_lodcheck$units[int_lodcheck$Parameter==i] # Internal Check
+    if(user_unit != check_unit){
+      stop(paste('The provided units in "LOD_values.xlsx" :',user_unit,
+                 "\nfor the parameter:", i,
+                 "\ndoes not match with the expected units:",check_unit))
+    }
+  }
+
+  # Once check clear, subset to just LOD
+  lod.data <- lod.data %>%
+    dplyr::select(Parameter,LOD) %>%
+    dplyr::mutate(Parameter = toupper(Parameter))
+
+  # Coerce result columnto numeric
+  if(!is.numeric(raw_dat$Result)){
+    raw_dat$Result <- as.numeric(raw_dat$Result)
+    if(any(is.na(unique(raw_dat$Result)))){
+      warning('NAs present in Result column following coercion of raw data to numeric,\n',
+              'Check for text/characters in "Result" column of input',path)
+    }
+  }
+
+  #----------------------Update Result values <LOD to 1/2*LOD -------------- ----
+  # Subset raw data to just Param + results, join with LOD dataframe
+  lod_join <-
+    raw_dat %>%
+    dplyr::mutate(Param = toupper(Param)) %>%
+    dplyr::select(Param, Result) %>%
+    dplyr::left_join(lod.data, by = c("Param"="Parameter"))
+
+  # Check for missing LOD values
+  if(anyNA(lod_join$LOD)){
+    missing_lod <- unique(lod_join$Param[is.na(lod_join$LOD)])
+    stop(
+      "Missing LOD values for parameters: ",
+      paste(missing_lod, collapse = ", "),
+      ".\nPlease update the \"LOD_values.xlsx\" file!",
+      call. = FALSE
+    )
+  }
+
+  # Replace <LOD values with "<lod"
+  lesslod_replaced <-
+  lod_join %>%   # attach the LOD for each Param
+    mutate(Result = if_else(Result < LOD, "<lod", as.character(Result))) %>%
+    select(-LOD) # remove the LOD column
+
+  # Replace the Results column in the raw data
+  raw_dat$Result <- lesslod_replaced$Result
+
+  return(raw_dat)
+
+}

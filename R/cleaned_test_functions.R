@@ -2,7 +2,7 @@ library(dplyr)
 library(tidyverse)
 library(stringr)
 
-data <- smast_ex3
+data <- data("smast_ex3")
 
 
 
