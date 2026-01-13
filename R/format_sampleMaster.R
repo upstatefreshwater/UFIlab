@@ -71,7 +71,7 @@ append_lod <- function(new_row, lod_data) {
 #' }
 #'
 #' @export
-format_sampleMaster
+
 
 format_sampleMaster <- function(path,
                                 add_lod_units = NULL){

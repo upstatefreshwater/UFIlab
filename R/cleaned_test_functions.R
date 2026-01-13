@@ -8,15 +8,10 @@ add_warn <- function(current, new) {
 }
 
 
-#' Read raw Excel data
-#'
-#' Reads the first sheet of an Excel file and returns it as a data frame.
-#'
-#' @param path Character. Path to the Excel file (e.g., "data/myfile.xlsx").
-#' @return A data frame containing the Excel data.
-#' @examples
-#' dat <- read_raw_data("data/myfile.xlsx")
-#' @export
+# Read raw Excel data
+#
+# Reads the first sheet of an Excel file and returns it as a data frame.
+
 read_raw_data <- function(path) {
 
   # Check that the path is valid
@@ -50,7 +45,7 @@ read_raw_data <- function(path) {
 #'    - Remaining duplicate site indicators (e.g., "dup").
 #'    - Missing or blank `Site` values.
 #'
-#' @param data A data frame containing OrderDetails columns, `Site`, `Location`, and `Param`.
+#' @param path Character. Complete file location of SampleMaster output file to be processed.
 #'
 #' @return A cleaned data frame with standardized column names and a `Warning` column listing any issues.
 #'
@@ -66,8 +61,9 @@ read_raw_data <- function(path) {
 #' clean_sample_data(test_df)
 #'
 #' @export
-clean_sample_data <- function(data) {
-
+clean_sample_data <- function(path) {
+  # -1. Read data
+  data <- read_raw_data(path)
   # 0. Ensure input is a data frame
   if (!is.data.frame(data)) {
     stop("Error in clean_sample_data(): input 'data' must be a data frame.")
