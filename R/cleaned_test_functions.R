@@ -60,6 +60,7 @@ read_raw_data <- function(path) {
 #'
 #' clean_sample_data(test_df)
 #'
+#' @importFrom magrittr %>%
 #' @export
 clean_sample_data <- function(path) {
   # -1. Read data

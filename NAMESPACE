@@ -2,3 +2,4 @@
 
 export(clean_sample_data)
 export(format_sampleMaster)
+importFrom(magrittr,"%>%")
