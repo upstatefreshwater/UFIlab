@@ -191,6 +191,39 @@ add_missing_site_warning <- function(data) {
     )
 }
 
+#' Warn if sample collection time is missing for key parameters
+#'
+#' Checks for missing `CollectTime` values for NO2, SRP, and PtCoN samples.
+#' Adds a `Warning` column indicating which rows are missing collection time.
+#'
+#' @param data Data frame containing columns `Param` and `CollectTime`.
+#' @return The same data frame with a `Warning` column. Rows with missing
+#'   collection time for NO2, SRP, or PtCoN are flagged.
+#' @examples
+#' test_df <- data.frame(
+#'   Param = c("NO2", "SRP", "PtCoN", "TP"),
+#'   CollectTime = c("08:00", NA, NA, "09:00")
+#' )
+#' add_missing_collecttime_warning(test_df)
+#' @export
+add_missing_collecttime_warning <- function(data) {
+
+  stopifnot(is.data.frame(data))
+  stopifnot(all(c("Param", "CollectTime") %in% names(data)))
+
+  key_params <- c("NO2", "SRP", "PtCoN")
+
+  data %>%
+    dplyr::mutate(
+      Warning = dplyr::case_when(
+        Param %in% key_params & (is.na(CollectTime) | stringr::str_trim(CollectTime) == "") ~
+          "Missing collect time for key parameter",
+        TRUE ~ NA_character_
+      )
+    )
+}
+
+
 # -------------------------
 # Example workflow
 # -------------------------
@@ -202,5 +235,6 @@ add_missing_site_warning <- function(data) {
 #   fix_field_dup_site() %>%
 #   add_dup_warning() %>%
 #   add_missing_site_warning()
+# addd_missing_collecttime_warning
 
 
