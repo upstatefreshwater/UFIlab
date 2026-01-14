@@ -97,12 +97,27 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   }
 
 
-  # 1. Remove bad params if Param exists
-  if ("Param" %in% names(data) && exists("badparams")) {
-    data <- data[!data$Param %in% badparams, ]
-  }else{
-    if(!exists("badparams")){stop('Contact DaveA, internal data "badparams" is missing.')}
+  # 1. Remove bad params from data
+  if (!"Param" %in% names(data)) {
     stop('"Param" column missing from SampleMaster data.')
+  }
+
+  if (!exists("badparams")) {
+    stop('Contact DaveA, internal data "badparams" is missing.')
+  }
+
+  # Identify rows to remove
+  bad_idx <- data$Param %in% badparams
+
+  if (any(bad_idx)) {
+    bad_dat <- data[bad_idx, ]
+    bad_Params <- unique(bad_dat$Param)
+    message(paste('"bad" parameter data removed for these parameters:', paste(bad_Params, collapse = ", ")))
+
+    # Remove bad rows
+    data <- data[!bad_idx, ]
+  } else {
+    message("No bad parameters found in data.")
   }
 
   # 2. Rename OrderDetails columns
@@ -156,11 +171,6 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   if (!"Warning" %in% names(data)) {
     data$Warning <- ""
   }
-
-  # 5. Warning for remaining duplicates
-  dup_idx <- grepl("dup", tolower(data$Site))
-  data$Warning[dup_idx] <- mapply(add_warn, data$Warning[dup_idx],
-                                  "Check sample type / site name")
 
   # 6. Warning for missing/blank site names
   missing_idx <- is.na(data$Site) | trimws(data$Site) == ""
