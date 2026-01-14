@@ -102,10 +102,6 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     stop('"Param" column missing from SampleMaster data.')
   }
 
-  if (!exists("badparams")) {
-    stop('Contact DaveA, internal data "badparams" is missing.')
-  }
-
   # Identify rows to remove
   bad_idx <- data$Param %in% badparams
 
