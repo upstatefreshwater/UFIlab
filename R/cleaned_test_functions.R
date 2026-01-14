@@ -139,7 +139,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   site_duplabel <- data[idx_dup,]
 
   # Identify rows labelled as duplicates with no Location info to replace with
-  no_locations <- site_duplabel[is.na(site_duplabel$Location) | site_duplabel$Location == "",]
+  no_locations <- site_duplabel[is.na(site_duplabel$Location) | trimws(site_duplabel$Location) == "",]
   # Error if no location data exists to replace FD in "Site"
   if (nrow(no_locations) > 0) {
     err_ids <- no_locations$SampleNumber
@@ -172,13 +172,30 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     data$Warning <- ""
   }
 
-  # 6. Warning for missing/blank site names
-  missing_idx <- is.na(data$Site) | trimws(data$Site) == ""
-  data$Warning[missing_idx] <- mapply(add_warn, data$Warning[missing_idx],
-                                      "Missing site name")
+  # 6. Error for missing/blank site names
+  missing_idx <- is.na(data$Site) | trimws(data$Site) == "" # trimws = trim white space
+  missing_sites <- data[missing_idx,]
+  if(nrow(missing_sites)>0){
+    # Identify empty site names without Location info
+    no_loc <- missing_sites[is.na(missing_sites$Location) | trimws(missing_sites$Location) == "",]
+    # Error if missing site w/o Location info
+    if(nrow(no_loc)>0){
+      misserr_ids <- missing_sites$SampleNumber # Pull sample ID's
+      misserr_ids_str <- paste(misserr_ids, collapse = ", ")
 
-  # Replace empty strings with NA
-  data$Warning[data$Warning == ""] <- NA_character_
+      stop(
+        paste0(
+          '⚠ Site data are missing with no Location information provided.\n',
+          'Empty "Site" data found, with no "Location" specified for samples:\n',
+          err_ids_str,
+          "\nPlease update the data before proceeding.\n If no Location was provided,",
+          "refer to the SOP for what to enter"
+        ),
+        call. = FALSE
+      )
+    }
+
+  }
 
   #normalize parameter
   data$Param <- tolower(data$Param)
