@@ -195,7 +195,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   if (any(paramvals %in% c("srp", "no2", "ptcon"))) {
     time_idx <- tolower(data$Param) %in% c("srp", "no2", "ptcon") # pull out rows with Param = SRP, NO2, or PTCoN
     time_dat <- data[time_idx,]
-    missing_times <- time_dat[is.na(time_dat$CollectTime) | trimws(time_dat$CollecTime)==""]
+    missing_times <- time_dat[is.na(time_dat$CollectTime) | trimws(time_dat$CollectTime)==""]
 
     if (nrow(missing_times)>0) {
       timeerr_ids <- missing_times$SampleNumber # Pull sample ID's
@@ -236,7 +236,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   # Check that field duplicates were specified correctly in SampleType
   dup_samptype <- tolower(site_duplabel$SampleType)
 
-  if(!any(dup_samptype)=='field dup'){
+  if(if (any(dup_samptype != "field dup")) {
     dup_type_idx <- tolower(site_duplabel$SampleType) != 'field dup'
     dup_type_wrong <- site_duplabel$SampleNumber[dup_type_idx]
     dup_type_str <- paste(dup_type_wrong, collapse = ", ")
