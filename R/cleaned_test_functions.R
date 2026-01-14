@@ -1,11 +1,19 @@
-# Helper to append warnings
-add_warn <- function(current, new) {
-  if (current == "" | is.na(current)) {
-    new
-  } else {
-    paste(current, new, sep = "; ")
+# Helper function to update a value and log the change
+update_value <- function(df, meta = NULL, row, col, new_value) {
+  old_value <- df[[col]][row]
+
+  # Update the main data
+  df[[col]][row] <- new_value
+
+  # Log change only if metadata is provided
+  if (!is.null(meta)) {
+    meta[[col]][row] <- paste0("Changed from ", old_value, " to ", new_value)
   }
+
+  # Return updated objects
+  list(data = df, qc_meta = meta)
 }
+
 
 # Helper to rename OrderDetails columns
 rename_if_present <- function(df, old, new) {
@@ -34,7 +42,14 @@ read_raw_data <- function() {
 
   return(dat)
 }
-
+# Helper to append warnings
+add_warn <- function(current, new) {
+  if (current == "" | is.na(current)) {
+    new
+  } else {
+    paste(current, new, sep = "; ")
+  }
+}
 
 #' Perform QC checks, and updates, on raw output from SampleMaster
 #'
@@ -63,13 +78,24 @@ read_raw_data <- function() {
 #'
 #' @importFrom magrittr %>%
 #' @export
-clean_sample_data <- function() {
-  # 0. Read data
+clean_sample_data <- function(return_QC_meta = TRUE) {
+  # -1. Read data
   data <- read_raw_data()
   path <- attr(data, "source_path") # extract path of source data file
 
   # Read column names to object for use in downstream logic
   dat_colnames <- names(data)
+
+  # 0. Confirm argument type
+  if(!is.logical(return_QC_meta)){
+    stop(paste('"return_QC_meta" incorrectly specified as',return_QC_meta,
+    '\n"return_QC_meta" requires TRUE/FALSE as input'))
+  }else if (return_QC_meta) {
+    # Create a metadata template: same dimensions and column names as `data`, but all values NA
+    qc_meta <- data
+    qc_meta[] <- NA  # sets all values to NA while keeping column types
+  }
+
 
   # 1. Remove bad params if Param exists
   if ("Param" %in% names(data) && exists("badparams")) {
@@ -117,21 +143,18 @@ clean_sample_data <- function() {
 
   # If field dups in "Site" can be fixed using "Location", do so ()
   if(nrow(site_duplabel)>0){
+    # Log changes if metadata is enabled
+    if (!is.null(qc_meta)) {
+      qc_meta$Site[idx_dup] <- paste0("Changed from ", data$Site[idx_dup],
+                                      " to ", data$Location[idx_dup])
+    }
+    # Make the actual change in the data
     data$Site[idx_dup] <- data$Location[idx_dup]
   }
 
   # 4. Initialize Warning column
   if (!"Warning" %in% names(data)) {
     data$Warning <- ""
-  }
-
-  # Helper to append warnings
-  add_warn <- function(current, new) {
-    if (current == "" | is.na(current)) {
-      new
-    } else {
-      paste(current, new, sep = "; ")
-    }
   }
 
   # 5. Warning for remaining duplicates
