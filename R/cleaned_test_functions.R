@@ -7,35 +7,36 @@ add_warn <- function(current, new) {
   }
 }
 
+# Helper to rename OrderDetails columns
+rename_if_present <- function(df, old, new) {
+  if (old %in% names(df)) {
+    dplyr::rename(df, !!new := !!rlang::sym(old))
+  } else {
+    df
+  }
+}
 
 # Read raw Excel data
 #
 # Reads the first sheet of an Excel file and returns it as a data frame.
 
-read_raw_data <- function(path) {
+read_raw_data <- function() {
+  message("Select the data file")
 
-  # Check that the path is valid
-  if (!is.character(path) || length(path) != 1) {
-    stop("Error in read_raw_data(): 'path' must be a single character string.")
-  }
+  path <- file.choose()
 
-  if (!file.exists(path)) {
-    stop("Error in read_raw_data(): file does not exist at the provided path.")
-  }
+  path <- normalizePath(path, winslash = "/", mustWork = TRUE)
 
   # Read the Excel file
   dat <- readxl::read_excel(path)
 
-  # Ensure output is a data frame
-  if (!is.data.frame(dat)) {
-    stop("Error in read_raw_data(): failed to read Excel file as a data frame.")
-  }
+  attr(dat, "source_path") <- path
 
   return(dat)
 }
 
 
-#' Clean and validate sample data (simpler, mostly base R)
+#' Perform QC checks, and updates, on raw output from SampleMaster
 #'
 #' Performs standard cleaning and validation on sample data:
 #' * Renames OrderDetails columns to standardized names.
@@ -62,35 +63,60 @@ read_raw_data <- function(path) {
 #'
 #' @importFrom magrittr %>%
 #' @export
-clean_sample_data <- function(path) {
-  # -1. Read data
-  data <- read_raw_data(path)
-  # 0. Ensure input is a data frame
-  if (!is.data.frame(data)) {
-    stop("Error in clean_sample_data(): input 'data' must be a data frame.")
-  }
+clean_sample_data <- function() {
+  # 0. Read data
+  data <- read_raw_data()
+  path <- attr(data, "source_path") # extract path of source data file
+
+  # Read column names to object for use in downstream logic
+  dat_colnames <- names(data)
 
   # 1. Remove bad params if Param exists
   if ("Param" %in% names(data) && exists("badparams")) {
     data <- data[!data$Param %in% badparams, ]
+  }else{
+    if(!exists("badparams")){stop('Contact DaveA, internal data "badparams" is missing.')}
+    stop('"Param" column missing from SampleMaster data.')
   }
 
   # 2. Rename OrderDetails columns
   data <- data %>%
-    dplyr::rename(
-      `Receipt Temp (⁰C)`      = dplyr::any_of("OrderDetails_User1"),
-      Comments                 = dplyr::any_of("OrderDetails_User2"),
-      `Depth (m)`              = dplyr::any_of("OrderDetails_User3"),
-      Replicate                = dplyr::any_of("OrderDetails_User4"),
-      `Mc_T Receipt Temp (⁰C)` = dplyr::any_of("OrderDetails_User5")
-    )
-
-
-  dup_text <- dup_patterns
+    rename_if_present("OrderDetails_User1", "Receipt Temp (⁰C)") %>%
+    rename_if_present("OrderDetails_User2", "Comments") %>%
+    rename_if_present("OrderDetails_User3", "Depth (m)") %>%
+    rename_if_present("OrderDetails_User4", "Replicate") %>%
+    rename_if_present("OrderDetails_User5", "Mc_T Receipt Temp (⁰C)")
 
   # 3. Fix duplicate site names
-  if (all(c("Site", "Location") %in% names(data))) {
-    idx_dup <- tolower(data$Site) %in% dup_text & !is.na(data$Location)
+  if (!all(c("Site", "Location") %in% dat_colnames)) {
+    stop('"Site" and/or "Location" columns missing from SampleMaster data.')
+  }
+  # Identify rows where "Site" is labelled as a field duplicate
+  # Create an index of locations where dup_patterns is found in "Site"
+  idx_dup <- tolower(data$Site) %in% dup_patterns # Don't look at "Location" here, error handling below
+  # Extract rows whwere "dup_patterns" are found in "Site"
+  site_duplabel <- data[idx_dup,]
+
+  # Identify rows labelled as duplicates with no Location info to replace with
+  no_locations <- site_duplabel[is.na(site_duplabel$Location) | site_duplabel$Location == "",]
+  # Error if no location data exists to replace FD in "Site"
+  if (nrow(no_locations) > 0) {
+    err_ids <- no_locations$SampleNumber
+    err_ids_str <- paste(err_ids, collapse = ", ")
+
+    stop(
+      paste0(
+        '⚠ Field Duplicate designations identified in "Site" column.\n',
+        'The "Location" column is missing information for the following Field Duplicate sample IDs:\n',
+        err_ids_str,
+        "\nPlease update the data before proceeding."
+      ),
+      call. = FALSE
+    )
+  }
+
+  # If field dups in "Site" can be fixed using "Location", do so ()
+  if(nrow(site_duplabel)>0){
     data$Site[idx_dup] <- data$Location[idx_dup]
   }
 
