@@ -97,7 +97,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   }
 
 
-  # 1. Remove bad params from data
+  # 1. Remove bad params from data ----
   if (!"Param" %in% names(data)) {
     stop('"Param" column missing from SampleMaster data.')
   }
@@ -120,7 +120,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     message("No bad parameters found in data.")
   }
 
-  # 2. Rename OrderDetails columns
+  # 2. Rename OrderDetails columns ----
   data <- data %>%
     rename_if_present("OrderDetails_User1", "Receipt Temp (⁰C)") %>%
     rename_if_present("OrderDetails_User2", "Comments") %>%
@@ -128,7 +128,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     rename_if_present("OrderDetails_User4", "Replicate") %>%
     rename_if_present("OrderDetails_User5", "Mc_T Receipt Temp (⁰C)")
 
-  # 3. Fix duplicate site names
+  # 3. Fix duplicate site names ----
   if (!all(c("Site", "Location") %in% dat_colnames)) {
     stop('"Site" and/or "Location" columns missing from SampleMaster data.')
   }
@@ -167,12 +167,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     data$Site[idx_dup] <- data$Location[idx_dup]
   }
 
-  # 4. Initialize Warning column
-  if (!"Warning" %in% names(data)) {
-    data$Warning <- ""
-  }
-
-  # 6. Error for missing/blank site names
+  # 4. Error for missing/blank site names ----
   missing_idx <- is.na(data$Site) | trimws(data$Site) == "" # trimws = trim white space
   missing_sites <- data[missing_idx,]
   if(nrow(missing_sites)>0){
@@ -197,16 +192,29 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
 
   }
 
-  #normalize parameter
-  data$Param <- tolower(data$Param)
-  paramvals <- unique(data$Param)
+  # 5. Check for missing collection times for SRP, NO2, PTCoN
+  # Pull out Param values
+  paramvals <- unique(tolower(data$Param))
 
   if (any(paramvals %in% c("srp", "no2", "ptcon"))) {
+    time_idx <- tolower(data$Param) %in% c("srp", "no2", "ptcon")
+    time_dat <- data[time_idx,]
+    missing_times <- time_dat[is.na(time_dat$CollectTime) | trimws(time_dat$CollecTime)==""]
 
-    collecttimes <- data$CollectTime[data$Param %in% c("srp", "no2", "ptcon")]
+    if (nrow(missing_times)>0) {
+      timeerr_ids <- missing_times$SampleNumber # Pull sample ID's
+      timeerr_ids_str <- paste(timeerr_ids, collapse = ", ")
 
-    if (any(is.na(collecttimes)) || length(collecttimes) == 0) {
-      warning("Collection Time is Missing")
+      stop(
+        paste0(
+          '⚠ Collection times are missing for SRP, NO2, and/or PTCoN\n',
+          'Affected samples are:\n',
+          timeerr_ids_str,
+          "\nPlease update the data before proceeding.\n If no CollectTime was provided,",
+          "refer to the SOP for what to enter"
+        ),
+        call. = FALSE
+      )
     }
   }
 
