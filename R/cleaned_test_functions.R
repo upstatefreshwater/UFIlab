@@ -197,7 +197,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   paramvals <- unique(tolower(data$Param))
 
   if (any(paramvals %in% c("srp", "no2", "ptcon"))) {
-    time_idx <- tolower(data$Param) %in% c("srp", "no2", "ptcon")
+    time_idx <- tolower(data$Param) %in% c("srp", "no2", "ptcon") # pull out rows with Param = SRP, NO2, or PTCoN
     time_dat <- data[time_idx,]
     missing_times <- time_dat[is.na(time_dat$CollectTime) | trimws(time_dat$CollecTime)==""]
 
@@ -216,9 +216,45 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
         call. = FALSE
       )
     }
+
+
   }
 
+  # 6. Check sample type column contains data
 
+  if(anyNA(data$SampleType) | trimws(data$SampleType) == ""){
+    samptype_missing_idx <- is.na(data$SampleType) | trimws(data$SampleType) == ""
+    sampids_typ_missing <- data$SampleNumber[samptyp_missing_idx]
+    samptype_missing_str <- paste(sampids_typ_missing, collapse = ", ")
+
+    stop(
+      paste0(
+        '⚠ Data contains rows with missing Sample Type',
+        'Affected samples are:\n',
+        samptype_missing_str,
+        "\nPlease update the data before proceeding.r"
+      ),
+      call. = FALSE
+    )
+  }
+  # Check that field duplicates were specified correctly in SampleType
+  dup_samptype <- tolower(site_duplabel$SampleType)
+
+  if(!any(dup_samptype)=='field dup'){
+    dup_type_idx <- tolower(site_duplabel$SampleType) != 'field dup'
+    dup_type_wrong <- site_duplabel$SampleNumber[dup_type_idx]
+    dup_type_str <- paste(dup_type_wrong, collapse = ", ")
+
+    stop(
+      paste0(
+        '⚠ Duplicate sample identified in site column, incorrectly labelled in "SampleType" column.',
+        'Affected samples are:\n',
+        dup_type_str,
+        "\nPlease update the data before proceeding.r"
+      ),
+      call. = FALSE
+    )
+  }
 
   return(data)
 }

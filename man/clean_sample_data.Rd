@@ -2,9 +2,9 @@
 % Please edit documentation in R/cleaned_test_functions.R
 \name{clean_sample_data}
 \alias{clean_sample_data}
-\title{Clean and validate sample data (simpler, mostly base R)}
+\title{Perform QC checks, and updates, on raw output from SampleMaster}
 \usage{
-clean_sample_data(path)
+clean_sample_data(return_QC_meta = TRUE)
 }
 \arguments{
 \item{path}{Character. Complete file location of SampleMaster output file to be processed.}
