@@ -236,7 +236,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   # Check that field duplicates were specified correctly in SampleType
   dup_samptype <- tolower(site_duplabel$SampleType)
 
-  if(if (any(dup_samptype != "field dup")) {
+  if(any(dup_samptype != "field dup")) {
     dup_type_idx <- tolower(site_duplabel$SampleType) != 'field dup'
     dup_type_wrong <- site_duplabel$SampleNumber[dup_type_idx]
     dup_type_str <- paste(dup_type_wrong, collapse = ", ")
