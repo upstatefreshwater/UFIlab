@@ -81,7 +81,8 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   }else{
     qc_meta <- NULL
   }
-
+  # Create qc_check regardless of if qc_meta will be returned
+  qc_check <- 0 # used to make sure code rean when no QC_flags are present
 
   # 1. Remove bad params from data ----
   if (!"Param" %in% names(data)) {
@@ -101,6 +102,8 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
                                          "REMOVED") # Flag message
     qc_meta$QC_notes[bad_idx] <- add_note(qc_meta$QC_notes,
                                           "row_removed: bad parameter") # Note message
+    # Update qc_check
+    qc_check <- qc_check + 1
   }else {
     message("No bad parameters found in data.")
   }
@@ -138,14 +141,14 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   no_locations <- site_duplabel[is.na(site_duplabel$Location) | trimws(site_duplabel$Location) == "",]
   # Error if no location data exists to replace FD in "Site"
   if (nrow(no_locations) > 0) {
-    err_ids_str <- paste(no_locations$SampleNumber, collapse = ", ")
+    err_ids <- unique(no_locations$SampleNumber)
 
     stop(
       paste0(
-        '⚠ Field Duplicate designations identified in "Site" column.\n',
-        'The "Location" column is missing information for the following Field Duplicate sample IDs:\n',
-        err_ids_str,
-        "\nPlease update the data before proceeding."
+        '⚠ Field Duplicate designations identified in the "Site" column.\n\n',
+        'The "Location" column is missing information for the following sample IDs:\n\n',
+        paste0("  • ", err_ids, collapse = "\n"),
+        "\n\nPlease update the data before proceeding."
       ),
       call. = FALSE
     )
@@ -162,6 +165,9 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     }
     # Make the actual change in the data (not removing rows, so can do the operation here)
     data$Site[idx_dup] <- data$Location[idx_dup]
+
+    # Update qc_check
+    qc_check <- qc_check + 1
   }
 
   # 4. Error for missing/blank site names ----
@@ -173,14 +179,13 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     # Error if missing site w/o Location info
     if(nrow(no_loc)>0){
       misserr_ids <- missing_sites$SampleNumber # Pull sample ID's
-      misserr_ids_str <- paste(misserr_ids, collapse = ", ")
 
       stop(
         paste0(
-          '⚠ Site data are missing with no Location information provided.\n',
-          'Empty "Site" data found, with no "Location" specified for samples:\n',
-          misserr_ids_str,
-          "\nPlease update the data before proceeding.\n If no Location was provided,",
+          '⚠ Site data are missing with no Location information provided.\n\n',
+          'Empty "Site" data found, with no "Location" specified for samples:\n\n',
+          paste0("  • ", misserr_ids, collapse = "\n"),
+          "Please update the data before proceeding.\n If no Location was provided,",
           "refer to the SOP for what to enter"
         ),
         call. = FALSE
@@ -188,6 +193,8 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     }else {# If location exists, fill in "Site" with Location
       # Make the actual change in the data (not removing rows, so can do the operation here)
       data$Site[missing_idx] <- data$Location[missing_idx]
+      # Update qc_check
+      qc_check <- qc_check + 1
       # Update the qc_meta object
       if(!is.null(qc_meta)){
         qc_meta$QC_flag[missing_idx] <- add_flag(qc_meta$QC_flag[missing_idx], "SITE")
@@ -198,7 +205,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     }
   }
 
-  # 5. Check for missing collection times for SRP, NO2, PTCoN ----
+  # 5. Check for missing collection times for SRP, NO2, PTCoN (Error only, no data mutation) ----
   # Pull out Param values
   paramvals <- unique(tolower(data$Param))
 
@@ -210,13 +217,12 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
 
     if (nrow(missing_times)>0) {
       timeerr_ids <- missing_times$SampleNumber # Pull sample ID's
-      timeerr_ids_str <- paste(timeerr_ids, collapse = ", ")
 
       stop(
         paste0(
-          '⚠ Collection times are missing for SRP, NO2, and/or PTCoN\n',
-          'Affected samples are:\n',
-          timeerr_ids_str,
+          '⚠ Collection times are missing for SRP, NO2, and/or PTCoN\n\n',
+          'Affected samples are:\n\n',
+          paste0("  • ", timeerr_ids, collapse = "\n"),
           "\nPlease update the data before proceeding.\n If no CollectTime was provided,",
           "refer to the SOP for what to enter"
         ),
@@ -237,6 +243,8 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
       if(any(fd_match_idx)){
         # Make the actual change in the data (not removing rows, so can do the operation here)
         data$SampleType[fd_match_idx] <- "Field Dup"
+        # Update qc_check
+        qc_check <- qc_check + 1
         # Update qc_meta object
         if(!is.null(qc_meta)){
           qc_meta$QC_flag[fd_match_idx] <- add_flag(qc_meta$QC_flag[fd_match_idx], "SAMPLETYPE")
@@ -251,13 +259,12 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
       # Error if there are still blanks in "SampleType"
       if(any(samptype_missing_idx)){
         sampids_typ_missing <- data$SampleNumber[samptype_missing_idx]
-        samptype_missing_str <- paste(sampids_typ_missing, collapse = ", ")
 
         stop(
           paste0(
-            '⚠ Data contains rows with missing Sample Type',
-            'Affected samples are:\n',
-            samptype_missing_str,
+            '⚠ Data contains rows with missing Sample Type\n\n',
+            'Affected samples are:\n\n',
+            paste0("  • ", samptype_missing, collapse = "\n"),
             "\nPlease update the data before proceeding.r"
           ),
           call. = FALSE
@@ -265,7 +272,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
       }
     }
 
-    # Check that field duplicates were specified correctly in SampleType
+    # Check that field duplicates were specified correctly in SampleType (Error only, no data mutation)
     # Recompute site_duplabel
     dup_idx <- tolower(data$Site) %in% dup_patterns
     dup_samptype <- tolower(data$SampleType[dup_idx])
@@ -273,13 +280,12 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     if(any(dup_samptype != "field dup")) {
       dup_type_idx <- tolower(data$SampleType[dup_idx]) != 'field dup'
       dup_type_wrong <- data$SampleNumber[dup_idx][dup_type_idx] # First subset to dup_idx then subset that using dup_type_idx
-      dup_type_str <- paste(dup_type_wrong, collapse = ", ")
 
       stop(
         paste0(
-          '⚠ Duplicate sample identified in site column, incorrectly labelled in "SampleType" column.',
-          'Affected samples are:\n',
-          dup_type_str,
+          '⚠ Duplicate sample identified in site column, incorrectly labelled in "SampleType" column.\n\n',
+          'Affected samples are:\n\n',
+          paste0("  • ", dup_type_wrong, collapse = "\n"),
           "\nPlease update the data before proceeding.r"
         ),
         call. = FALSE
@@ -297,20 +303,19 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     # Remove rows from data (this is done at the end to keep upstream alignment btwn data and qc_meta)
     if (any(remove_idx)) {
       data <- data[!remove_idx, ]
+
     }
     # Replace NA's with blanks for ease of use in Excel
     # Have to use this crazy code to keep column types and avoid errors with blanking POSIXct's
-    char_cols <- vapply(qc_meta, is.character, logical(1))
+    char_cols <- vapply(qc_meta, is.character, logical(1)) # vapply for column selection
 
-    qc_meta[char_cols] <- lapply(
+    qc_meta[char_cols] <- lapply( # lapply for column mutation
       qc_meta[char_cols],
       function(x) {
         x[is.na(x)] <- ""
         x
       }
     )
-
-
   }
 
   # Save the metadata to file
@@ -324,6 +329,15 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     writexl::write_xlsx(qc_meta, qc_file)
 
     message(paste("QC metadata saved to:", qc_file))
+  }
+
+  # Print the qc_check regardless of returning the qc_meta object
+  if(qc_check>0){
+    message(qc_check, ifelse(qc_check == 1, " operation was carried out", " operations were carried out"))
+
+  }else if (qc_check == 0){
+    message("No QC operations were necessary. QC_flag and QC_notes columns will be empty if saved."
+    )
   }
   return(data)
 }

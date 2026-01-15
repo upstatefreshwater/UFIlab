@@ -75,7 +75,7 @@ append_lod <- function(new_row, lod_data) {
 
 format_sampleMaster <- function(path,
                                 add_lod_units = NULL){
-  raw_dat <- read_excel(path)
+  raw_dat <- readxl::read_excel(path)
   # ----------------------------------LOD detection------------------------- ----
   # Pull LOD data from the updateable Excel file
   lod.data <- get_lod() # read from the helper function
@@ -157,8 +157,8 @@ format_sampleMaster <- function(path,
   # Replace <LOD values with "<lod"
   lesslod_replaced <-
   lod_join %>%   # attach the LOD for each Param
-    mutate(Result = if_else(Result < LOD, "<lod", as.character(Result))) %>%
-    select(-LOD) # remove the LOD column
+    dplyr::mutate(Result = dplyr::if_else(Result < LOD, "<lod", as.character(Result))) %>%
+    dplyr::select(-LOD) # remove the LOD column
 
   # Replace the Results column in the raw data
   raw_dat$Result <- lesslod_replaced$Result
