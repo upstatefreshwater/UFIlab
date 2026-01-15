@@ -1,19 +1,3 @@
-# Helper function to update a value and log the change
-update_value <- function(df, meta = NULL, row, col, new_value) {
-  old_value <- df[[col]][row]
-
-  # Update the main data
-  df[[col]][row] <- new_value
-
-  # Log change only if metadata is provided
-  if (!is.null(meta)) {
-    meta[[col]][row] <- paste0("Changed from ", old_value, " to ", new_value)
-  }
-
-  # Return updated objects
-  list(data = df, qc_meta = meta)
-}
-
 # Helper to rename OrderDetails columns
 rename_if_present <- function(df, old, new) {
   if (old %in% names(df)) {
@@ -41,13 +25,14 @@ read_raw_data <- function() {
 
   return(dat)
 }
-# Helper to append warnings
-add_warn <- function(current, new) {
-  if (current == "" | is.na(current)) {
-    new
-  } else {
-    paste(current, new, sep = "; ")
-  }
+
+# Helper for appending QC messages, if multiple are needed, into one column
+add_flag <- function(current, new) {
+  if (is.na(current) || current == "") new else paste(current, new, sep = "; ")
+}
+
+add_note <- function(current, new) {
+  if (is.na(current) || current == "") new else paste(current, new, sep = "; ")
 }
 
 #' Perform QC checks, and updates, on raw output from SampleMaster
@@ -60,7 +45,8 @@ add_warn <- function(current, new) {
 #'    - Remaining duplicate site indicators (e.g., "dup").
 #'    - Missing or blank `Site` values.
 #'
-#' @param path Character. Complete file location of SampleMaster output file to be processed.
+#' @param return_QC_meta Logical. If **TRUE**, saves a QC dataframe to the location of the
+#' selected datafile with the name `filename_QC.xlsx`.
 #'
 #' @return A cleaned data frame with standardized column names and a `Warning` column listing any issues.
 #'
@@ -82,17 +68,18 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   data <- read_raw_data()
   path <- attr(data, "source_path") # extract path of source data file
 
-  # Read column names to object for use in downstream logic
-  dat_colnames <- names(data)
-
   # 0. Confirm argument type
   if(!is.logical(return_QC_meta)){
     stop(paste('"return_QC_meta" incorrectly specified as',return_QC_meta,
-    '\n"return_QC_meta" requires TRUE/FALSE as input'))
+               '\n"return_QC_meta" requires TRUE/FALSE as input'))
   }else if (return_QC_meta) {
     # Create a metadata template: same dimensions and column names as `data`, but all values NA
     qc_meta <- data
-    qc_meta[] <- NA  # sets all values to NA while keeping column types
+    qc_meta$QC_flag <- NA_character_   # create column for filtering on when QC actions are taken
+    qc_meta$QC_notes <- NA_character_  # sets all values to NA while keeping column types
+    qc_meta <- qc_meta[, c(names(data), "QC_flag","QC_notes")]
+  }else{
+    qc_meta <- NULL
   }
 
 
@@ -104,41 +91,54 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   # Identify rows to remove
   bad_idx <- data$Param %in% badparams
 
+  # If rows are removed, mark them in the qc_metadata
   if (any(bad_idx)) {
-    bad_dat <- data[bad_idx, ]
-    bad_Params <- unique(bad_dat$Param)
+    # Message pasted to console
+    bad_Params <- unique(data$Param[bad_idx])
     message(paste('"bad" parameter data removed for these parameters:', paste(bad_Params, collapse = ", ")))
-
-    # Remove bad rows
-    data <- data[!bad_idx, ]
-  } else {
+    # qc_meta object updated
+    qc_meta$QC_flag[bad_idx] <- add_flag(qc_meta$QC_flag[bad_idx],
+                                         "REMOVED") # Flag message
+    qc_meta$QC_notes[bad_idx] <- add_note(qc_meta$QC_notes,
+                                          "row_removed: bad parameter") # Note message
+  }else {
     message("No bad parameters found in data.")
   }
 
   # 2. Rename OrderDetails columns ----
-  data <- data %>%
-    rename_if_present("OrderDetails_User1", "Receipt Temp (⁰C)") %>%
-    rename_if_present("OrderDetails_User2", "Comments") %>%
-    rename_if_present("OrderDetails_User3", "Depth (m)") %>%
-    rename_if_present("OrderDetails_User4", "Replicate") %>%
-    rename_if_present("OrderDetails_User5", "Mc_T Receipt Temp (⁰C)")
+  userdets <- c("OrderDetails_User1","OrderDetails_User2","OrderDetails_User3",
+                "OrderDetails_User4","OrderDetails_User5")
+  # Enter into this chunk if and "OrderDetails" columns exist
+  if(any(userdets %in% names(data))){
+    present_userdet_cols <- userdets[userdets %in% names(data)]
+    # Return a message about which columns were renamed (no way to include in qc_meta)
+    message("Order_Details columns present in data were renamed. Renamed column(s): \n - ",
+            paste(present_userdet_cols, collapse = ",\n - "))
+
+    data <- data %>%
+      rename_if_present("OrderDetails_User1", "Receipt Temp (⁰C)") %>%
+      rename_if_present("OrderDetails_User2", "Comments") %>%
+      rename_if_present("OrderDetails_User3", "Depth (m)") %>%
+      rename_if_present("OrderDetails_User4", "Replicate") %>%
+      rename_if_present("OrderDetails_User5", "Mc_T Receipt Temp (⁰C)")
+  }
 
   # 3. Fix duplicate site names ----
-  if (!all(c("Site", "Location") %in% dat_colnames)) {
+  if (!all(c("Site", "Location") %in% names(data))) {
     stop('"Site" and/or "Location" columns missing from SampleMaster data.')
   }
   # Identify rows where "Site" is labelled as a field duplicate
   # Create an index of locations where dup_patterns is found in "Site"
   idx_dup <- tolower(data$Site) %in% dup_patterns # Don't look at "Location" here, error handling below
-  # Extract rows whwere "dup_patterns" are found in "Site"
+
+  # Extract rows where "dup_patterns" are found in "Site"
   site_duplabel <- data[idx_dup,]
 
   # Identify rows labelled as duplicates with no Location info to replace with
   no_locations <- site_duplabel[is.na(site_duplabel$Location) | trimws(site_duplabel$Location) == "",]
   # Error if no location data exists to replace FD in "Site"
   if (nrow(no_locations) > 0) {
-    err_ids <- no_locations$SampleNumber
-    err_ids_str <- paste(err_ids, collapse = ", ")
+    err_ids_str <- paste(no_locations$SampleNumber, collapse = ", ")
 
     stop(
       paste0(
@@ -155,10 +155,12 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   if(nrow(site_duplabel)>0){
     # Log changes if metadata is enabled
     if (!is.null(qc_meta)) {
-      qc_meta$Site[idx_dup] <- paste0("Changed from ", data$Site[idx_dup],
-                                      " to ", data$Location[idx_dup])
+      qc_meta$QC_flag[idx_dup] <- add_flag(qc_meta$QC_flag[idx_dup], "SITE")
+      qc_meta$QC_notes[idx_dup] <- add_note(qc_meta$QC_notes[idx_dup],
+                                            paste0("\"Site\" changed from ", data$Site[idx_dup],
+                                                   " to ", data$Location[idx_dup]))
     }
-    # Make the actual change in the data
+    # Make the actual change in the data (not removing rows, so can do the operation here)
     data$Site[idx_dup] <- data$Location[idx_dup]
   }
 
@@ -183,8 +185,17 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
         ),
         call. = FALSE
       )
+    }else {# If location exists, fill in "Site" with Location
+      # Make the actual change in the data (not removing rows, so can do the operation here)
+      data$Site[missing_idx] <- data$Location[missing_idx]
+      # Update the qc_meta object
+      if(!is.null(qc_meta)){
+        qc_meta$QC_flag[missing_idx] <- add_flag(qc_meta$QC_flag[missing_idx], "SITE")
+        qc_meta$QC_notes[missing_idx] <- add_note(qc_meta$QC_notes[missing_idx],
+                                                  paste0("\"Site\" was blank, \"Location\" used instead = "
+                                                         , data$Location[missing_idx]))
+      }
     }
-
   }
 
   # 5. Check for missing collection times for SRP, NO2, PTCoN
@@ -211,46 +222,95 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
         call. = FALSE
       )
     }
-
-
   }
 
   # 6. Check sample type column contains data
 
-  if(anyNA(data$SampleType) | trimws(data$SampleType) == ""){
+  # If "SampleType" is missing enter this chunk
+  if (any(is.na(data$SampleType) | trimws(data$SampleType) == "")) {
     samptype_missing_idx <- is.na(data$SampleType) | trimws(data$SampleType) == ""
-    sampids_typ_missing <- data$SampleNumber[samptype_missing_idx]
-    samptype_missing_str <- paste(sampids_typ_missing, collapse = ", ")
 
-    stop(
-      paste0(
-        '⚠ Data contains rows with missing Sample Type',
-        'Affected samples are:\n',
-        samptype_missing_str,
-        "\nPlease update the data before proceeding.r"
-      ),
-      call. = FALSE
-    )
+    # Check for Field Duplicates identified in "Site" that match missing "SampleType"
+    fd_match_idx <- samptype_missing_idx & idx_dup
+    # If any exist, overwrite "SampleType" with "Field Dup"
+    if(any(fd_match_idx)){
+      # Make the actual change in the data (not removing rows, so can do the operation here)
+      data$SampleType[fd_match_idx] <- "Field Dup"
+      # Update qc_meta object
+      if(!is.null(qc_meta)){
+        qc_meta$QC_flag[fd_match_idx] <- add_flag(qc_meta$QC_flag[fd_match_idx], "SAMPLETYPE")
+        qc_meta$QC_notes[fd_match_idx] <- add_note(qc_meta$QC_notes[fd_match_idx],
+                                                   paste0("\"SampleType\" changed to \"Field Dup\" based on \"Site\""))
+      }
+    }
+
+    # Re-compile after possible replacement
+    samptype_missing_idx <- is.na(data$SampleType) | trimws(data$SampleType) == ""
+
+    # Error if there are still blanks in "SampleType"
+    if(any(samptype_missing_idx)){
+      sampids_typ_missing <- data$SampleNumber[samptype_missing_idx]
+      samptype_missing_str <- paste(sampids_typ_missing, collapse = ", ")
+
+      stop(
+        paste0(
+          '⚠ Data contains rows with missing Sample Type',
+          'Affected samples are:\n',
+          samptype_missing_str,
+          "\nPlease update the data before proceeding.r"
+        ),
+        call. = FALSE
+      )
+    }
+
+    # Check that field duplicates were specified correctly in SampleType
+    # Recompute site_duplabel
+    dup_idx <- tolower(data$Site) %in% dup_patterns
+    dup_samptype <- tolower(data$SampleType[dup_idx])
+
+    if(any(dup_samptype != "field dup")) {
+      dup_type_idx <- tolower(data$SampleType[dup_idx]) != 'field dup'
+      dup_type_wrong <- data$SampleNumber[dup_idx][dup_type_idx] # First subset to dup_idx then subset that using dup_type_idx
+      dup_type_str <- paste(dup_type_wrong, collapse = ", ")
+
+      stop(
+        paste0(
+          '⚠ Duplicate sample identified in site column, incorrectly labelled in "SampleType" column.',
+          'Affected samples are:\n',
+          dup_type_str,
+          "\nPlease update the data before proceeding.r"
+        ),
+        call. = FALSE
+      )
+    }
   }
-  # Check that field duplicates were specified correctly in SampleType
-  dup_samptype <- tolower(site_duplabel$SampleType)
 
-  if(any(dup_samptype != "field dup")) {
-    dup_type_idx <- tolower(site_duplabel$SampleType) != 'field dup'
-    dup_type_wrong <- site_duplabel$SampleNumber[dup_type_idx]
-    dup_type_str <- paste(dup_type_wrong, collapse = ", ")
+  # Remove rows at the end to ensure upstream alignment
+  if (!is.null(qc_meta)) {
+    # Identify any rows removed during QC
+    remove_idx <- !is.na(qc_meta$QC_notes) &
+      grepl("^row_removed", qc_meta$QC_notes)
+    # Remove rows from data (this is done at the end to keep upstream alignment btwn data and qc_meta)
+    if (any(remove_idx)) {
+      data <- data[!remove_idx, ]
+    }
+    # Replace NA's with blanks for ease of use in Excel
+    qc_meta[is.na(qc_meta)] <- ""
 
-    stop(
-      paste0(
-        '⚠ Duplicate sample identified in site column, incorrectly labelled in "SampleType" column.',
-        'Affected samples are:\n',
-        dup_type_str,
-        "\nPlease update the data before proceeding.r"
-      ),
-      call. = FALSE
-    )
   }
 
+  # Save the metadata to file
+  if (return_QC_meta && !is.null(qc_meta)) {
+    # Construct QC filename based on original file
+    orig_file <- basename(path)
+    file_base <- tools::file_path_sans_ext(orig_file)
+    qc_file <- file.path(dirname(path), paste0(file_base, "_QC.xlsx"))
+
+    # Write QC metadata to Excel
+    writexl::write_xlsx(qc_meta, qc_file)
+
+    message(paste("QC metadata saved to:", qc_file))
+  }
   return(data)
 }
 
