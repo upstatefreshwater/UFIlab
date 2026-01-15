@@ -14,7 +14,6 @@ update_value <- function(df, meta = NULL, row, col, new_value) {
   list(data = df, qc_meta = meta)
 }
 
-
 # Helper to rename OrderDetails columns
 rename_if_present <- function(df, old, new) {
   if (old %in% names(df)) {
@@ -178,7 +177,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
         paste0(
           '⚠ Site data are missing with no Location information provided.\n',
           'Empty "Site" data found, with no "Location" specified for samples:\n',
-          err_ids_str,
+          misserr_ids_str,
           "\nPlease update the data before proceeding.\n If no Location was provided,",
           "refer to the SOP for what to enter"
         ),
@@ -220,7 +219,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
 
   if(anyNA(data$SampleType) | trimws(data$SampleType) == ""){
     samptype_missing_idx <- is.na(data$SampleType) | trimws(data$SampleType) == ""
-    sampids_typ_missing <- data$SampleNumber[samptyp_missing_idx]
+    sampids_typ_missing <- data$SampleNumber[samptype_missing_idx]
     samptype_missing_str <- paste(sampids_typ_missing, collapse = ", ")
 
     stop(
