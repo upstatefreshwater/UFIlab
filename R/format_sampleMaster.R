@@ -84,17 +84,41 @@ format_sampleMaster <- function(path,
   int_lodcheck <- lod_checkdata
   if(!is.null(add_lod_units)){
     int_lodcheck <-  append_lod(new_row = add_lod_units,
-                                data = int_lodcheck)
+                                lod_data = int_lodcheck)
   }
-  # Check that LOD units are correct using internal check
-  for (i in unique(int_lodcheck$Parameter)) {
-    user_unit <- lod.data$units[lod.data$Parameter==i] # From "LOD_values.xlsx"
-    check_unit <- int_lodcheck$units[int_lodcheck$Parameter==i] # Internal Check
-    if(!identical(user_unit, check_unit)){
-      stop(paste('The provided units in "LOD_values.xlsx" :',user_unit,
-                 "\nfor the parameter:", i,
-                 "\ndoes not match with the expected units:",check_unit))
-    }
+  # Ensure consistent casing for matching
+  lod_units <- lod.data %>%
+    dplyr::select(Parameter, units) %>%
+    dplyr::mutate(Parameter = toupper(Parameter))
+
+  expected_units <- int_lodcheck %>%
+    dplyr::select(Parameter, units) %>%
+    dplyr::mutate(Parameter = toupper(Parameter))
+
+  # Join LOD file units to expected units and flag mismatches
+  unit_check <- lod_units %>%
+    dplyr::inner_join(
+      expected_units,
+      by = "Parameter",
+      suffix = c("_lod", "_expected")
+    ) %>%
+    dplyr::filter(units_lod != units_expected)
+
+  # Throw a single informative error if any mismatches are found
+  if (nrow(unit_check) > 0) {
+    stop(
+      "LOD unit mismatch detected:\n",
+      paste(
+        sprintf(
+          "  %s: %s (LOD file) vs %s (expected)",
+          unit_check$Parameter,
+          unit_check$units_lod,
+          unit_check$units_expected
+        ),
+        collapse = "\n"
+      ),
+      call. = FALSE
+    )
   }
 
   # Once check clear, subset to just LOD
