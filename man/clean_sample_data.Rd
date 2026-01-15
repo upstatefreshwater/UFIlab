@@ -7,7 +7,8 @@
 clean_sample_data(return_QC_meta = TRUE)
 }
 \arguments{
-\item{path}{Character. Complete file location of SampleMaster output file to be processed.}
+\item{return_QC_meta}{Logical. If **TRUE**, saves a QC dataframe to the location of the
+selected datafile with the name `filename_QC.xlsx`.}
 }
 \value{
 A cleaned data frame with standardized column names and a `Warning` column listing any issues.

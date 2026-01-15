@@ -151,7 +151,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     )
   }
 
-  # If field dups in "Site" can be fixed using "Location", do so ()
+  # If field dups in "Site" can be fixed using "Location", do so
   if(nrow(site_duplabel)>0){
     # Log changes if metadata is enabled
     if (!is.null(qc_meta)) {
@@ -198,14 +198,15 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     }
   }
 
-  # 5. Check for missing collection times for SRP, NO2, PTCoN
+  # 5. Check for missing collection times for SRP, NO2, PTCoN ----
   # Pull out Param values
   paramvals <- unique(tolower(data$Param))
 
   if (any(paramvals %in% c("srp", "no2", "ptcon"))) {
     time_idx <- tolower(data$Param) %in% c("srp", "no2", "ptcon") # pull out rows with Param = SRP, NO2, or PTCoN
     time_dat <- data[time_idx,]
-    missing_times <- time_dat[is.na(time_dat$CollectTime) | trimws(time_dat$CollectTime)==""]
+    ct <- as.character(time_dat$CollectTime) # Convert to character to avoid error with `trimws()`
+    missing_times <- time_dat[is.na(ct) | trimws(ct) == "", ] # trimws to catch empty cells
 
     if (nrow(missing_times)>0) {
       timeerr_ids <- missing_times$SampleNumber # Pull sample ID's
@@ -224,43 +225,44 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     }
   }
 
-  # 6. Check sample type column contains data
+  # 6. Check sample type column contains data ----
+  if("SampleType" %in% names(data)){
+    # If "SampleType" is missing enter this chunk
+    if (any(is.na(data$SampleType) | trimws(data$SampleType) == "")) {
+      samptype_missing_idx <- is.na(data$SampleType) | trimws(data$SampleType) == ""
 
-  # If "SampleType" is missing enter this chunk
-  if (any(is.na(data$SampleType) | trimws(data$SampleType) == "")) {
-    samptype_missing_idx <- is.na(data$SampleType) | trimws(data$SampleType) == ""
-
-    # Check for Field Duplicates identified in "Site" that match missing "SampleType"
-    fd_match_idx <- samptype_missing_idx & idx_dup
-    # If any exist, overwrite "SampleType" with "Field Dup"
-    if(any(fd_match_idx)){
-      # Make the actual change in the data (not removing rows, so can do the operation here)
-      data$SampleType[fd_match_idx] <- "Field Dup"
-      # Update qc_meta object
-      if(!is.null(qc_meta)){
-        qc_meta$QC_flag[fd_match_idx] <- add_flag(qc_meta$QC_flag[fd_match_idx], "SAMPLETYPE")
-        qc_meta$QC_notes[fd_match_idx] <- add_note(qc_meta$QC_notes[fd_match_idx],
-                                                   paste0("\"SampleType\" changed to \"Field Dup\" based on \"Site\""))
+      # Check for Field Duplicates identified in "Site" that match missing "SampleType"
+      fd_match_idx <- samptype_missing_idx & idx_dup
+      # If any exist, overwrite "SampleType" with "Field Dup"
+      if(any(fd_match_idx)){
+        # Make the actual change in the data (not removing rows, so can do the operation here)
+        data$SampleType[fd_match_idx] <- "Field Dup"
+        # Update qc_meta object
+        if(!is.null(qc_meta)){
+          qc_meta$QC_flag[fd_match_idx] <- add_flag(qc_meta$QC_flag[fd_match_idx], "SAMPLETYPE")
+          qc_meta$QC_notes[fd_match_idx] <- add_note(qc_meta$QC_notes[fd_match_idx],
+                                                     paste0("\"SampleType\" changed to \"Field Dup\" based on \"Site\""))
+        }
       }
-    }
 
-    # Re-compile after possible replacement
-    samptype_missing_idx <- is.na(data$SampleType) | trimws(data$SampleType) == ""
+      # Re-compile after possible replacement
+      samptype_missing_idx <- is.na(data$SampleType) | trimws(data$SampleType) == ""
 
-    # Error if there are still blanks in "SampleType"
-    if(any(samptype_missing_idx)){
-      sampids_typ_missing <- data$SampleNumber[samptype_missing_idx]
-      samptype_missing_str <- paste(sampids_typ_missing, collapse = ", ")
+      # Error if there are still blanks in "SampleType"
+      if(any(samptype_missing_idx)){
+        sampids_typ_missing <- data$SampleNumber[samptype_missing_idx]
+        samptype_missing_str <- paste(sampids_typ_missing, collapse = ", ")
 
-      stop(
-        paste0(
-          '⚠ Data contains rows with missing Sample Type',
-          'Affected samples are:\n',
-          samptype_missing_str,
-          "\nPlease update the data before proceeding.r"
-        ),
-        call. = FALSE
-      )
+        stop(
+          paste0(
+            '⚠ Data contains rows with missing Sample Type',
+            'Affected samples are:\n',
+            samptype_missing_str,
+            "\nPlease update the data before proceeding.r"
+          ),
+          call. = FALSE
+        )
+      }
     }
 
     # Check that field duplicates were specified correctly in SampleType
@@ -283,6 +285,8 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
         call. = FALSE
       )
     }
+  }else { # Error if SampleType is missing
+    stop("\"SampleType\" column missing from data.")
   }
 
   # Remove rows at the end to ensure upstream alignment
@@ -295,7 +299,17 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
       data <- data[!remove_idx, ]
     }
     # Replace NA's with blanks for ease of use in Excel
-    qc_meta[is.na(qc_meta)] <- ""
+    # Have to use this crazy code to keep column types and avoid errors with blanking POSIXct's
+    char_cols <- vapply(qc_meta, is.character, logical(1))
+
+    qc_meta[char_cols] <- lapply(
+      qc_meta[char_cols],
+      function(x) {
+        x[is.na(x)] <- ""
+        x
+      }
+    )
+
 
   }
 
