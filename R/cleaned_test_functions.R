@@ -26,11 +26,11 @@ read_raw_data <- function() {
 
 # Helper for appending QC messages, if multiple are needed, into one column
 add_flag <- function(current, new) {
-  if (is.na(current) || current == "") new else paste(current, new, sep = "; ")
+  if (any(is.na(current) | current == "")) new else paste(current, new, sep = "; ")
 }
 
 add_note <- function(current, new) {
-  if (is.na(current) || current == "") new else paste(current, new, sep = "; ")
+  if (any(is.na(current) | current == "")) new else paste(current, new, sep = "; ")
 }
 
 #' Perform QC checks, and updates, on raw output from SampleMaster
@@ -128,7 +128,7 @@ clean_sample_data <- function(return_QC_meta = TRUE,
       rename_if_present("OrderDetails_User5", "Mc_T Receipt Temp (⁰C)")
   }
 
-  # 3. Fix duplicate site names ----
+  # 3. Fix field duplicate site names ----
   if (!all(c("Site", "Location") %in% names(data))) {
     stop('"Site" and/or "Location" columns missing from SampleMaster data.')
   }

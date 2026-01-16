@@ -1,11 +1,7 @@
-#' Example Sample Master water quality dataset, this one contains no bad params
+#' Example Sample Master water quality dataset
 #'
-#' A laboratory results dataset in long format for demonstration of data
-#' processing, quality control, and analysis workflows in environmental
-#' monitoring.
-#'
-#' The dataset includes multiple analytes per sample, sampling metadata, QC
-#' information, and user-defined fields.
+#' Known data issues:
+#'  - Missing location information where "Field Duplicate" entered in the Site Column
 #'
 #' @format A data frame with 280 rows and 24 variables:
 #' \describe{
@@ -36,4 +32,4 @@
 #' }
 #'
 #' @source Example laboratory export provided for SMAST package demonstration.
-"smast_ex"
+"smast_ex_caytribs"

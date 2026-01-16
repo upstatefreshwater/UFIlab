@@ -1,11 +1,9 @@
-#' Example Sample Master laboratory results dataset - contains some bad params for testing
+#' Example Sample Master laboratory results dataset
 #'
-#' A tidy-format example dataset of laboratory analytical results used to
-#' demonstrate data wrangling, unit handling, and quality-control workflows
-#' for environmental monitoring data.
+#' Location - Chautauqua Lake, UFI sampling summer 2025
 #'
-#' The dataset includes multiple analytes per sample, reported in long format,
-#' along with sample metadata and laboratory result units.
+#' Known issues:
+#'  - Contains "bad params"
 #'
 #' @format A tibble with 538 rows and 20 variables:
 #' \describe{
@@ -32,4 +30,4 @@
 #' }
 #'
 #' @source Example laboratory export provided for package demonstration purposes.
-"smast_ex2"
+"smast_ex_chaut_badparam"

@@ -1,8 +1,9 @@
 #' Example dataset from SampleMaster
 #'
-#' A condensed example dataset containing laboratory analytical results from
-#' UFI's SampleMaster Program. Each row represents a
-#' single parameter result for a sampled bottle.
+#' Location: Chautauqua Lake, UFI Samnpling 2025 summer
+#'
+#' Known issues:
+#'  - No SampleType column
 #'
 #' @format A tibble with 538 rows and 13 variables:
 #' \describe{
@@ -22,4 +23,4 @@
 #' }
 #'
 #' @source SMAST laboratory database
-"smast_ex3"
+"smast_ex_chaut_nosamptype"
