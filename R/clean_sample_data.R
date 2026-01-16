@@ -47,19 +47,10 @@ add_note <- function(current, new) {
 #'
 #' @param return_QC_meta Logical. If **TRUE**, saves a QC dataframe to the location of the
 #' selected datafile with the name `filename_QC.xlsx`.
+#' @param add_lod_units Optional data frame of additional LOD units.
 #'
 #' @return A cleaned data frame with standardized column names and a `Warning` column listing any issues.
 #'
-#' @examples
-#' test_df <- data.frame(
-#'   OrderDetails_User1 = 20,
-#'   OrderDetails_User2 = "note",
-#'   Site = c("Field Dup", "Station A", NA, ""),
-#'   Location = c("Loc1", NA, "Loc3", "Loc4"),
-#'   Param = c("NO2", "TP", "SRP", "PtCoN")
-#' )
-#'
-#' clean_sample_data(test_df)
 #'
 #' @importFrom magrittr %>%
 #' @export

@@ -17,3 +17,14 @@ LazyData: true
 RoxygenNote: 7.3.2
 Depends: 
     R (>= 3.5)
+Imports:
+    checkmate,
+    dplyr,
+    fs,
+    magrittr,
+    readxl,
+    rlang,
+    tidyr,
+    writexl
+
+
