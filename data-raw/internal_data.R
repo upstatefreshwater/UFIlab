@@ -14,9 +14,14 @@ badparams <- c("%Solids", "105°C Wt", "550°C Wt", "Avg Std Titrant", "Diameter
 
 dup_patterns <- c("field dup", "dup", "fd", "duplicate", "f.d", "f/d")
 
+lod_checkdata <- lod_checkdata <-
+  tibble::tibble(Parameter = c('TP', 'TDP', 'SRP', 'Tn_L','DOC','POC','tNH3','NOx','TSS','FSS','VSS','SiO2','SC_L','TN','TDN','Chla'),
+                 units     = c('ugL','ugL', 'ugL', 'NTU', 'mgL','mgL','ugL', 'ugL','mgDW','mgDW','mgDW','mgL','uScm','ugL','ugL','ugL'))
+
 usethis::use_data(
   badparams,
   dup_patterns,
+  lod_checkdata,
   internal = TRUE,
   overwrite = TRUE
 )
