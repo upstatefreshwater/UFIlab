@@ -31,5 +31,5 @@
 #'   \item{OrderDetails_User4}{User-defined order detail (logical/NA)}
 #' }
 #'
-#' @source Example laboratory export provided for SMAST package demonstration.
+#' @source Example laboratory export..
 "smast_ex_caytribs"

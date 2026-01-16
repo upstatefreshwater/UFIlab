@@ -14,6 +14,8 @@ read_raw_data <- function() {
 
   path <- file.choose()
 
+  message(paste("Data file @",path,"selected"))
+
   path <- normalizePath(path, winslash = "/", mustWork = TRUE)
 
   # Read the Excel file

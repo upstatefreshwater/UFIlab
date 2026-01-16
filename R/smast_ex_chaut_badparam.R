@@ -3,7 +3,7 @@
 #' Location - Chautauqua Lake, UFI sampling summer 2025
 #'
 #' Known issues:
-#'  - Contains "bad params"
+#'  -
 #'
 #' @format A tibble with 538 rows and 20 variables:
 #' \describe{
@@ -30,4 +30,4 @@
 #' }
 #'
 #' @source Example laboratory export provided for package demonstration purposes.
-"smast_ex_chaut_badparam"
+"smast_ex_chaut_missinloc"
