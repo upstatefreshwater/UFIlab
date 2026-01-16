@@ -1,37 +1,4 @@
-# Helper to read the LOD file
-get_lod <- function() {
-  # full path inside installed package
-  path <- fs::path_package("UFIlab", "extdata", "LOD_values.xlsx")
-  # Throw error if LOD file is missing
-  if (!fs::file_exists(path)) stop("LOD_values.xlsx file not found at: ", path)
-
-  # read with readxl
-  readxl::read_excel(path)
-}
-
-# Helper to append row(s) to LOD_values
-append_lod <- function(new_row, lod_data) {
-  if (!is.null(new_row)) {
-    # Ensure it's a data frame or tibble
-    checkmate::assert_data_frame(new_row, min.rows = 1, ncols = 2)
-
-    # Ensure column names match exactly
-    expected_cols <- c("Parameter", "units")
-    if (!all(expected_cols %in% colnames(new_row))) {
-      stop("new_row must contain columns: ", paste(expected_cols, collapse = ", "))
-    }
-    # Check each column type
-    checkmate::assert_character(new_row$Parameter)
-    checkmate::assert_character(new_row$units)
-  }
-
-  # Append if not NULL
-  if (!is.null(new_row)) {
-    data.out <- dplyr::bind_rows(lod_data, new_row)
-  }
-
-  return(data.out)
-}
+# Helpers located in "LOD_helpers.R"
 
 #' Format SampleMaster Raw Data for Reporting
 #'
@@ -135,7 +102,7 @@ format_sampleMaster <- function(path,
     }
   }
 
-  #----------------------Update Result values <LOD to 1/2*LOD -------------- ----
+  #----------------------Update Result values <LOD  -------------- ----
   # Subset raw data to just Param + results, join with LOD dataframe
   lod_join <-
     raw_dat %>%

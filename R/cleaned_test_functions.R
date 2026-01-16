@@ -61,7 +61,8 @@ add_note <- function(current, new) {
 #'
 #' @importFrom magrittr %>%
 #' @export
-clean_sample_data <- function(return_QC_meta = TRUE) {
+clean_sample_data <- function(return_QC_meta = TRUE,
+                              add_lod_units = NULL) {
   # -1. Read data
   data <- read_raw_data()
   path <- attr(data, "source_path") # extract path of source data file
@@ -95,13 +96,16 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
     # Message pasted to console
     bad_Params <- unique(data$Param[bad_idx])
     message(paste('"bad" parameter data removed for these parameters:', paste(bad_Params, collapse = ", ")))
+
     # qc_meta object updated
-    qc_meta$QC_flag[bad_idx] <- add_flag(qc_meta$QC_flag[bad_idx],
-                                         "REMOVED") # Flag message
-    qc_meta$QC_notes[bad_idx] <- add_note(qc_meta$QC_notes,
-                                          "row_removed: bad parameter") # Note message
-    # Update qc_check
-    qc_check <- qc_check + 1
+    if(!is.null(qc_meta)){
+      qc_meta$QC_flag[bad_idx] <- add_flag(qc_meta$QC_flag[bad_idx],
+                                           "REMOVED") # Flag message
+      qc_meta$QC_notes[bad_idx] <- add_note(qc_meta$QC_notes,
+                                            "row_removed: bad parameter") # Note message
+      # Update qc_check
+      qc_check <- qc_check + 1
+    }
   }else {
     message("No bad parameters found in data.")
   }
@@ -262,8 +266,8 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
           paste0(
             '⚠ Data contains rows with missing Sample Type\n\n',
             'Affected samples are:\n\n',
-            paste0("  • ", samptype_missing, collapse = "\n"),
-            "\nPlease update the data before proceeding.r"
+            paste0("  • ", sampids_typ_missing, collapse = "\n"),
+            "\nPlease update the data before proceeding."
           ),
           call. = FALSE
         )
@@ -317,8 +321,37 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   }
 
   # 8. Update <LOD values in the "Result" column ----
+  # Retrieve lod table data using helper
+  lod_data <- get_lod()
 
+  # Check LOD units using helper
+  lod_data <-
+  lod_unit_check(df_lod = lod_data,
+                 add_lod_units = add_lod_units, # This helper is where additional LOD units may be added
+                 return_LOD_LOQ = "LOD")
 
+  # Update Results column to "<lod" using helper
+  lod_res <-
+  flag_below_lod(df = data,
+                 lod_df = lod_data,
+                 df_path = path) # raw data path specified for Error message within helper
+
+  # Only mutate data if Results <LOD were found in the input (helper returns NULL if no data <LOD exist)
+  if (!is.null(lod_res)) {
+
+    # apply data mutation
+    data <- lod_res$data
+    qc_check <- qc_check + 1
+
+    # apply QC logging
+    if (!is.null(qc_meta)) {
+      qc_meta$QC_flag[lod_res$flag_idx] <-
+        add_flag(qc_meta$QC_flag[lod_res$flag_idx], lod_res$flag)
+
+      qc_meta$QC_notes[lod_res$flag_idx] <-
+        add_note(qc_meta$QC_notes[lod_res$flag_idx], lod_res$note)
+    }
+  }
   # Save the metadata to file
   if (return_QC_meta && !is.null(qc_meta)) {
     # Construct QC filename based on original file
