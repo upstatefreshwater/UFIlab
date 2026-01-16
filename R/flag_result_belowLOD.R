@@ -40,8 +40,8 @@
 #' @export
 
 
-format_sampleMaster <- function(path,
-                                add_lod_units = NULL){
+flag_result_belowLOD <- function(path,
+                                 add_lod_units = NULL){
   raw_dat <- readxl::read_excel(path)
   # ----------------------------------LOD detection------------------------- ----
   # Pull LOD data from the updateable Excel file
