@@ -3,7 +3,7 @@ get_lod <- function() {
   # full path inside installed package
   path <- fs::path_package("UFIlab", "extdata", "LOD_values.xlsx")
   # Throw error if LOD file is missing
-  if (!fs::file_exists(path)) stop("LOD file not found at: ", path)
+  if (!fs::file_exists(path)) stop("LOD_values.xlsx file not found at: ", path)
 
   # read with readxl
   readxl::read_excel(path)
@@ -126,7 +126,7 @@ format_sampleMaster <- function(path,
     dplyr::select(Parameter,LOD) %>%
     dplyr::mutate(Parameter = toupper(Parameter))
 
-  # Coerce result columnto numeric
+  # Coerce result column to numeric
   if(!is.numeric(raw_dat$Result)){
     raw_dat$Result <- as.numeric(raw_dat$Result)
     if(anyNA(raw_dat$Result)){

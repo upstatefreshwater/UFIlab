@@ -7,8 +7,6 @@ rename_if_present <- function(df, old, new) {
   }
 }
 
-# Read raw Excel data
-#
 # Reads the first sheet of an Excel file and returns it as a data frame.
 
 read_raw_data <- function() {
@@ -68,7 +66,7 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
   data <- read_raw_data()
   path <- attr(data, "source_path") # extract path of source data file
 
-  # 0. Confirm argument type
+  # 0. Input checks, build qc_meta object ----
   if(!is.logical(return_QC_meta)){
     stop(paste('"return_QC_meta" incorrectly specified as',return_QC_meta,
                '\n"return_QC_meta" requires TRUE/FALSE as input'))
@@ -317,6 +315,9 @@ clean_sample_data <- function(return_QC_meta = TRUE) {
       }
     )
   }
+
+  # 8. Update <LOD values in the "Result" column ----
+
 
   # Save the metadata to file
   if (return_QC_meta && !is.null(qc_meta)) {
