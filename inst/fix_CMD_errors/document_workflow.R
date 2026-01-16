@@ -18,3 +18,13 @@ devtools::check(
   document = FALSE,   # IMPORTANT
   clean = TRUE
 )
+
+
+# Run this to install on machine w/o git
+devtools::build()
+
+# Move this to another machine
+# UFIlab_0.?.?.tar.gz
+# then install
+# install.packages("UFIlab_0.?.?.tar.gz", repos = NULL, type = "source")
+
