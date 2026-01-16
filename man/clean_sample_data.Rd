@@ -4,7 +4,7 @@
 \alias{clean_sample_data}
 \title{Perform QC checks, and updates, on raw output from SampleMaster}
 \usage{
-clean_sample_data(return_QC_meta = TRUE)
+clean_sample_data(return_QC_meta = TRUE, add_lod_units = NULL)
 }
 \arguments{
 \item{return_QC_meta}{Logical. If **TRUE**, saves a QC dataframe to the location of the
