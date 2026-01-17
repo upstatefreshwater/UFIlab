@@ -38,12 +38,13 @@ add_note <- function(current, new) {
 #' Perform QC checks, and updates, on raw output from SampleMaster
 #'
 #' Performs standard cleaning and validation on sample data:
-#' * Renames OrderDetails columns to standardized names.
-#' * Removes rows with invalid `Param` values (from `badparams`) if present.
-#' * Replaces field duplicate site names with their `Location`.
-#' * Adds cumulative warnings for:
-#'    - Remaining duplicate site indicators (e.g., "dup").
-#'    - Missing or blank `Site` values.
+#' \itemize{
+#'   \item Renames OrderDetails columns to standardized names.
+#'   \item Removes rows with invalid `Param` values (from `badparams`) if present.
+#'   \item Replaces field duplicate site names with their `Location`.
+#'   \item Adds cumulative warnings for remaining duplicate site indicators (e.g., "dup").
+#'   \item Adds cumulative warnings for missing or blank `Site` values.
+#' }
 #'
 #' @param return_QC_meta Logical. If **TRUE**, saves a QC dataframe to the location of the
 #' selected datafile with the name `filename_QC.xlsx`.
