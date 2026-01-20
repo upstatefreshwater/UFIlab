@@ -41,13 +41,13 @@ completes without error:
 
 \itemize{
   \item \strong{`*_QC.xlsx`}: A copy of the raw data with QC annotations.
-  \itemize{
-    \item \emph{QC_flag}: Short codes describing QC actions taken.
-    \item \emph{QC_notes}: Detailed descriptions of QC actions.
+  Contains the following columns:
+  \describe{
+    \item{QC_flag}{Short codes describing QC actions taken.}
+    \item{QC_notes}{Detailed descriptions of QC actions.}
   }
   \item \strong{`*_cleaned.xlsx`}: The final cleaned dataset.
 }
-
 If any QC rule fails, execution stops and no output files are written.
 Error messages include affected sample IDs when applicable to aid manual correction.
 }
