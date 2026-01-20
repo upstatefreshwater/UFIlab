@@ -397,8 +397,7 @@ clean_sample_data <- function(return_QC_meta = TRUE,
 # 9. Write output data to file  ----
   in_data_name <- tools::file_path_sans_ext(basename(path))
   out_file <- paste0(in_data_name, "_cleaned.xlsx")
-  writexl::write_xlsx(data,
-                       file = out_file)
+  writexl::write_xlsx(data,out_file)
   message(paste0("What's this say?",out_file))
   message("Function completed without Errors!")
   return(data)
