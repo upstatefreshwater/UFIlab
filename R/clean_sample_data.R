@@ -115,11 +115,11 @@ clean_sample_data <- function(return_QC_meta = TRUE,
             paste(present_userdet_cols, collapse = ",\n - "))
 
     data <- data %>%
-      rename_if_present("OrderDetails_User1", "Receipt Temp (⁰C)") %>%
+      rename_if_present("OrderDetails_User1", "Receipt Temp (C)") %>%
       rename_if_present("OrderDetails_User2", "Comments") %>%
       rename_if_present("OrderDetails_User3", "Depth (m)") %>%
       rename_if_present("OrderDetails_User4", "Replicate") %>%
-      rename_if_present("OrderDetails_User5", "Mc_T Receipt Temp (⁰C)")
+      rename_if_present("OrderDetails_User5", "Mc_T Receipt Temp (C)")
   }
 
   # 3. Fix field duplicate site names ----
