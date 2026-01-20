@@ -1,11 +1,11 @@
 Package: UFIlab
 Type: Package
-Title: What the Package Does (Title Case)
+Title: A suite of functions to aid in chemistry laboratory data management. 
 Version: 0.1.0
 Authors@R: c(
     person(
-      "Jane", "Doe",
-      email = "jane@example.com",
+      "David", "Andrews",
+      email = "dsandrews@upstatefreshwater.org",
       role = c("aut", "cre")
     )
   )
