@@ -40,6 +40,6 @@ Location - Chautauqua Lake, UFI sampling summer 2025
 }
 \details{
 Known issues:
- -
+ - Missing location information
 }
 \keyword{datasets}
