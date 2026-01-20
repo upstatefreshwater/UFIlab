@@ -2,4 +2,9 @@
 
 export(clean_sample_data)
 export(flag_result_belowLOD)
+importFrom(checkmate,assert_character)
+importFrom(fs,dir_exists)
 importFrom(magrittr,"%>%")
+importFrom(readxl,read_excel)
+importFrom(rlang,":=")
+importFrom(writexl,write_xlsx)
