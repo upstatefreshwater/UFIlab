@@ -3,7 +3,7 @@
 #' Location - Chautauqua Lake, UFI sampling summer 2025
 #'
 #' Known issues:
-#'  -
+#'  - Missing location information
 #'
 #' @format A tibble with 538 rows and 20 variables:
 #' \describe{

@@ -35,26 +35,52 @@ add_note <- function(current, new) {
   if (any(is.na(current) | current == "")) new else paste(current, new, sep = "; ")
 }
 
-#' Perform QC checks, and updates, on raw output from SampleMaster
+#' Perform QC checks and updates on raw output from SampleMaster
 #'
-#' Performs standard cleaning and validation on sample data:
+#' Accepts raw SampleMaster input and performs automated QC actions where
+#' permissible, or stops with informative errors when manual intervention
+#' is required. When the function completes without error, cleaned outputs
+#' and QC metadata are written to the same directory as the input file.
+#'
+#' The following QC actions are performed:
 #' \itemize{
-#'   \item Renames OrderDetails columns to standardized names.
-#'   \item Removes rows with invalid `Param` values (from `badparams`) if present.
-#'   \item Replaces field duplicate site names with their `Location`.
-#'   \item Adds cumulative warnings for remaining duplicate site indicators (e.g., "dup").
-#'   \item Adds cumulative warnings for missing or blank `Site` values.
+#'   \item Removes rows with invalid `Param` values (from `badparams`), if present.
+#'   \item Renames `OrderDetails_*` columns to standardized names.
+#'   \item Replaces field duplicate values in `Site` with `Location` where available.
+#'   \item Errors if any `Site` values are missing and no `Location` is provided.
+#'   \item Errors if `CollectTime` is missing for `Param` values SRP, NO2, or PTCoN.
+#'   \item Replaces missing `SampleType` with `"Field Dup"` when field duplicates are identified.
+#'   \item Flags results below the limit of detection (`<LOD`) in the `Result` column.
 #' }
 #'
-#' @param return_QC_meta Logical. If **TRUE**, saves a QC dataframe to the location of the
-#' selected datafile with the name `filename_QC.xlsx`.
-#' @param add_lod_units Optional data frame of additional LOD units.
+#' @param return_QC_meta Logical. If `TRUE`, writes a QC metadata workbook to the
+#' input file directory with the suffix `_QC.xlsx`.
+#' @param add_lod_units Optional data frame specifying additional LOD units.
+#' Must contain columns `Parameter` and `units`.
 #'
-#' @return A cleaned data frame with standardized column names and a `Warning` column listing any issues.
+#' @details
+#' Two Excel workbooks are written to the input data directory if the function
+#' completes without error:
 #'
+#' \itemize{
+#'   \item \strong{`*_QC.xlsx`}: A copy of the raw data with QC annotations.
+#'   \itemize{
+#'     \item \emph{QC_flag}: Short codes describing QC actions taken.
+#'     \item \emph{QC_notes}: Detailed descriptions of QC actions.
+#'   }
+#'   \item \strong{`*_cleaned.xlsx`}: The final cleaned dataset.
+#' }
+#'
+#' If any QC rule fails, execution stops and no output files are written.
+#' Error messages include affected sample IDs when applicable to aid manual correction.
+#'
+#' @return
+#' This function is called for its side effects. It writes cleaned data and
+#' QC metadata to disk and returns `NULL` invisibly.
 #'
 #' @importFrom magrittr %>%
 #' @export
+
 clean_sample_data <- function(return_QC_meta = TRUE,
                               add_lod_units = NULL) {
   # -1. Read data
@@ -122,7 +148,7 @@ clean_sample_data <- function(return_QC_meta = TRUE,
       rename_if_present("OrderDetails_User5", "Mc_T Receipt Temp (C)")
   }
 
-  # 3. Fix field duplicate site names ----
+  # 3. Replace Field Duplicate in Site with Location if possible ----
   if (!all(c("Site", "Location") %in% names(data))) {
     stop('"Site" and/or "Location" columns missing from SampleMaster data.')
   }
@@ -201,7 +227,7 @@ clean_sample_data <- function(return_QC_meta = TRUE,
     }
   }
 
-  # 5. Check for missing collection times for SRP, NO2, PTCoN (Error only, no data mutation) ----
+  # 5. Error for missing collection times for SRP, NO2, PTCoN (Error only, no data mutation) ----
   # Pull out Param values
   paramvals <- unique(tolower(data$Param))
 
@@ -227,9 +253,9 @@ clean_sample_data <- function(return_QC_meta = TRUE,
     }
   }
 
-  # 6. Check sample type column contains data ----
+  # 6. Replace blank SampleType if possible ----
   if("SampleType" %in% names(data)){
-    # If "SampleType" is missing enter this chunk
+    # If "SampleType" data is missing enter this chunk
     if (any(is.na(data$SampleType) | trimws(data$SampleType) == "")) {
       samptype_missing_idx <- is.na(data$SampleType) | trimws(data$SampleType) == ""
 
@@ -367,6 +393,13 @@ clean_sample_data <- function(return_QC_meta = TRUE,
     message("No QC operations were necessary. QC_flag and QC_notes columns will be empty if saved."
     )
   }
+
+# 9. Write output data to file  ----
+  in_data_name <- tools::file_path_sans_ext(basename(path))
+  out_file <- paste0(in_data_name, "_cleaned.xlsx")
+  openxlsx::write.xlsx(data,
+                       file = out_file)
+  message("Function completed without Errors!")
   return(data)
 }
 
